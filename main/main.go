@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"image/color"
+	"math/rand"
 	"time"
 
 	"github.com/faiface/pixel"
@@ -18,7 +19,11 @@ const (
 	columns = 256
 )
 
-var bus *Bus
+var (
+	bus    *Bus
+	frames = 0
+	second = time.Tick(time.Second)
+)
 
 func init() {
 	cpu := &CPU6502{}
@@ -31,7 +36,7 @@ func main() {
 	cpu := bus.cpu
 	cpu.SetStatusRegisterFlag(V, true)
 	fmt.Println(cpu)
-	
+	fmt.Println(rand.Float32())
 	pixelgl.Run(run)
 }
 
@@ -52,31 +57,42 @@ func run() {
 
 	imd := imdraw.New(nil)
 
+	// last := time.Now()
 	for !win.Closed() {
 
-		t1 := time.Now()
 		var x, y, size float64 = 0, 0, 1
-		colors := len(colornames.Names)
+		// colors := len(colornames.Names)
 		i := 0
+		win.Clear(colornames.Black)
+		// max := int((x * y) / 4)
 		for y < rows {
 			for x < columns {
-				imd.Color = colornames.Map[colornames.Names[int(x+y)%colors]]}
-				imd.Push(pixel.V(x, y), pixel.V(x+size, y+size))
-				imd.Rectangle(0)
+				if rand.Float32() > 0.95 {
+					// imd.Color = colornames.Map[colornames.Names[int(x+y)%colors]]
+					imd.Color = colornames.Map[colornames.Names[int(x+y)%16]]
+					imd.Push(pixel.V(x, y), pixel.V(x+size, y+size))
+					imd.Rectangle(0)
+					i++
+				}
 				x += size
-				i++
 			}
 			x = 0
 			y += size
 		}
-
 		imd.Draw(win)
+		imd.Clear()
 		win.Update()
-
-		t2 := time.Now()
-		diff := t2.Sub(t1)
-		fmt.Println("Iterated over ", i, " cells and spent ", diff, " on that frame - ", 1.0/diff.Seconds(), " FPS")
-		fps := 1.0 / diff.Seconds()
-		fmt.Println(fps, "FPS")
+		frames++
+		select {
+		case <-second:
+			win.SetTitle(fmt.Sprintf("%s | FPS: %d", cfg.Title, frames))
+			frames = 0
+		default:
+		}
+		// t2 := time.Now()
+		// diff := t2.Sub(t1)
+		// fmt.Println("Iterated over ", i, " cells and spent ", diff, " on that frame - ", 1.0/diff.Seconds(), " FPS")
+		// fps := 1.0 / diff.Seconds()
+		// fmt.Println(fps, "FPS")
 	}
 }
