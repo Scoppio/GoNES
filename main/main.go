@@ -8,10 +8,8 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
-	"github.com/faiface/pixel/text"
 
 	"golang.org/x/image/colornames"
-	"golang.org/x/image/font/basicfont"
 )
 
 const (
@@ -23,10 +21,8 @@ const (
 
 var (
 	bus      *Bus
-	basicTxt text
 	frames   = 0
 	second   = time.Tick(time.Second)
-	atlas    = text.NewAtlas(basicfont.Face7x13, text.ASCII)
 )
 
 func init() {
@@ -105,10 +101,10 @@ func drawCpu(c *CPU6502) {
 }
 
 func DrawString(x, y float64, message string) {
-	basicTxt = text.New(pixel.V(x, y), atlas)
+	//basicTxt = text.New(pixel.V(x, y), atlas)
 	// if color == nil {
 	// 	color = colornames.White
 	// }
-	basicTxt.Color = colornames.White
-	fmt.Fprintln(basicTxt, message)
+	// basicTxt.Color = colornames.White
+	fmt.Print(message)
 }
