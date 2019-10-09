@@ -132,7 +132,6 @@ func (c *CPU6502) Reset() {
 	c.fetched = 0x00
 
 	c.cycles = 8
-
 }
 
 func (c *CPU6502) InterruptRequest() {
@@ -1077,7 +1076,6 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 	hex := func(n uint32, d int) string {
 		s := fmt.Sprintf("%X", n)
 		var b bytes.Buffer
-		b.WriteString("0x")
 		if len(s) < d {
 			for i := d - len(s); i > 0; i-- {
 				b.WriteByte('0')
@@ -1118,7 +1116,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 		// 6502 in order to get accurate data as part of the
 		// instruction
 		if FnEquals(OpCodesLookupTable[opcode].addressmode, IMP) {
-			sInst.WriteString(" {IMP}")
+			sInst.WriteString("{IMP}")
 		} else if FnEquals(OpCodesLookupTable[opcode].addressmode, IMM) {
 			var value byte
 			value, e = bus.Read(Word(addr), true)
