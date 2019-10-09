@@ -37,6 +37,15 @@ func init() {
 	memory := &Memory64k{}
 	bus = &Bus{cpu, memory}
 	cpu.ConnectBus(bus)
+
+	offset := Word(0x8000)
+	s := "A20A8E0000A2038E0100AC0000A900186D010088D0FA8D0200EAEAEA"
+	for i := 0; i < len(s); i++ {
+		bus.Write(offset+Word(i), s[i])
+	}
+	memory.mem[0xFFFC] = 0x00
+	memory.mem[0xFFFD] = 0x80
+	cpu.Reset()
 }
 
 func main() {
@@ -60,13 +69,53 @@ func run() {
 
 	imd = imdraw.New(nil)
 	basicTxt = text.New(pixel.V(0, 0), atlas)
-
 	// last := time.Now()
 	for !win.Closed() {
-		win.Clear(colornames.Blue)
+		if win.JustPressed(pixelgl.KeyR) {
+			// Reset
+			cpu.Reset()
+		}
+		if win.JustPressed(pixelgl.KeyI) {
+			// I
+			cpu.SetStatusRegisterFlag(I, !cpu.StatusRegister(I))
+		}
+		if win.JustPressed(pixelgl.KeyN) {
+			// N
+			cpu.SetStatusRegisterFlag(N, !cpu.StatusRegister(N))
+		}
+		if win.JustPressed(pixelgl.KeyV) {
+			// V
+			cpu.SetStatusRegisterFlag(V, !cpu.StatusRegister(V))
+		}
+		if win.JustPressed(pixelgl.KeyC) {
+			// C
+			cpu.SetStatusRegisterFlag(C, !cpu.StatusRegister(C))
+		}
+		if win.JustPressed(pixelgl.KeyZ) {
+			// Z
+			cpu.SetStatusRegisterFlag(Z, !cpu.StatusRegister(Z))
+		}
+		if win.JustPressed(pixelgl.KeyB) {
+			// B
+			cpu.SetStatusRegisterFlag(B, !cpu.StatusRegister(B))
+		}
+		if win.JustPressed(pixelgl.KeyU) {
+			// U
+			cpu.SetStatusRegisterFlag(U, !cpu.StatusRegister(U))
+		}
+		if win.JustPressed(pixelgl.KeySpace) {
+			// SPACE
+			cpu.Clock()
+			for !cpu.Complete() {
+				cpu.Clock()
+			}
+		}
+		win.Clear(colornames.Darkblue)
 
 		// drawPixels()
 		drawCpu()
+		drawRam(2, 3, 0x0000, 28)
+		drawRam(322, 3, 0x8000, 28)
 
 		imd.Draw(win)
 		basicTxt.Draw(win, pixel.IM)
@@ -106,28 +155,61 @@ func drawPixels() {
 
 func drawCpu() {
 	c := cpu
-	DrawString(10, 400, "Status", colornames.White)
-	DrawString(10, 420, "N", RedGreen(c.StatusRegister(N)))
-	DrawString(10+32, 420, "V", RedGreen(c.StatusRegister(V)))
-	DrawString(10+32*2, 420, "U", RedGreen(c.StatusRegister(U)))
-	DrawString(10+32*3, 420, "B", RedGreen(c.StatusRegister(B)))
-	DrawString(10+32*4, 420, "D", RedGreen(c.StatusRegister(D)))
-	DrawString(10+32*5, 420, "I", RedGreen(c.StatusRegister(I)))
-	DrawString(10+32*6, 420, "Z", RedGreen(c.StatusRegister(Z)))
-	DrawString(10+32*7, 420, "C", RedGreen(c.StatusRegister(C)))
+	redGreen := func(b bool) color.RGBA {
+		if b {
+			return colornames.White
+		} else {
+			return colornames.Red
+		}
+	}
+	drawString(10, 414, "CPU State", colornames.White)
+	drawString(10, 428, fmt.Sprintln("A: ", fmt.Sprintf("0x%X", c.a)), colornames.White)
+	drawString(10+32*3, 428, fmt.Sprintln("X: ", fmt.Sprintf("0x%X", c.x)), colornames.White)
+	drawString(10+32*6, 428, fmt.Sprintln("Y: ", fmt.Sprintf("0x%X", c.y)), colornames.White)
+	drawString(10+32*9, 428, fmt.Sprintln("ADD ABS: ", fmt.Sprintf("0x%X", c.address_abs)), colornames.White)
+	drawString(10+32*15, 428, fmt.Sprintln("ADD REL: ", fmt.Sprintf("0x%X", c.address_rel)), colornames.White)
+	drawString(10, 442, "N", redGreen(c.StatusRegister(N)))
+	drawString(10+32, 442, "V", redGreen(c.StatusRegister(V)))
+	drawString(10+32*2, 442, "U", redGreen(c.StatusRegister(U)))
+	drawString(10+32*3, 442, "B", redGreen(c.StatusRegister(B)))
+	drawString(10+32*4, 442, "D", redGreen(c.StatusRegister(D)))
+	drawString(10+32*5, 442, "I", redGreen(c.StatusRegister(I)))
+	drawString(10+32*6, 442, "Z", redGreen(c.StatusRegister(Z)))
+	drawString(10+32*7, 442, "C", redGreen(c.StatusRegister(C)))
+	drawString(10, 456, fmt.Sprintln("Clock: ", c.cycles), colornames.White)
+	drawString(10+32*3, 456, fmt.Sprintln("PC: ", fmt.Sprintf("0x%X", c.pc)), colornames.White)
+	drawString(10, 472, fmt.Sprintln("GlobalClock: ", clock_count), colornames.White)
 }
 
-func RedGreen(b bool) color.RGBA {
-	if b {
-		return colornames.Green
-	} else {
-		return colornames.Red
+func drawRam(x, y float64, memOffset Word, rows int) {
+	c := cpu
+	row := rows
+	text := c.Disassemble(memOffset, memOffset+Word(rows*2))
+	i := 0
+	for row > 0 {
+		l := len(text[memOffset+Word(i)])
+		line := 0
+		if l > 0 {
+			line++
+			y = y + float64(14*line)
+			color := colornames.White
+			if c.pc == memOffset+Word(i) {
+				color = colornames.Greenyellow
+			}
+			drawString(x, y, text[memOffset+Word(i)], color)
+			row--
+		}
+		i++
 	}
 }
 
-func DrawString(x, y float64, message string, color color.RGBA) {
-	// basicTxt.Clear()
+func drawString(x, y float64, message string, color color.RGBA) {
 	basicTxt.Dot = pixel.V(x, height-y)
+	basicTxt.Color = color
+	fmt.Fprintln(basicTxt, message)
+}
+
+func drawStringNL(message string, color color.RGBA) {
 	basicTxt.Color = color
 	fmt.Fprintln(basicTxt, message)
 }

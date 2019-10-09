@@ -16,12 +16,24 @@ type Writer interface {
 	Write(address rune, data byte) error
 }
 
+type Completable interface {
+	Complete() bool
+}
+
 type Clocker interface {
 	Clock(n byte)
 }
 
 type Resetable interface {
 	Reset()
+}
+
+type CPU interface {
+	Resetable
+	Completable
+	Clocker
+	Reader
+	Writer
 }
 
 type Operate func(c *CPU6502) byte

@@ -18,6 +18,10 @@ const (
 	STACK = Word(1 << 3)
 )
 
+var (
+	clock_count = 0
+)
+
 type CPU6502 struct {
 	a, x, y, stkp, status, fetched, opcode, cycles byte
 	pc, address_abs, address_rel                   Word
@@ -82,23 +86,28 @@ func (c *CPU6502) Write(address Word, data byte) error {
 }
 
 func (c *CPU6502) Clock() {
-	var e error
-	if c.cycles == 0 {
-		// execute
-	} else {
+	// execute
+	if c.cycles == byte(0x00) {
+		var e error
 		c.opcode, e = c.Read(c.pc)
 		if e != nil {
 			log.Fatalf("Error when trying to access address %d, error %s", c.pc, e)
 		}
-		c.pc++
-		opcode := 0
-		// c.cycles = OpCodesLookupTable[c.opcode].cycles
-		c.cycles = OpCodesLookupTable[opcode].cycles
-		additionalCycle := OpCodesLookupTable[opcode].addressmode(c)
-		additionalCycle2 := OpCodesLookupTable[opcode].operate(c)
+		c.SetStatusRegisterFlag(U, true)
+		c.pc = c.pc + 1
+		c.cycles = OpCodesLookupTable[c.opcode].cycles
+		additionalCycle := OpCodesLookupTable[c.opcode].addressmode(c)
+		additionalCycle2 := OpCodesLookupTable[c.opcode].operate(c)
 		c.cycles += (additionalCycle & additionalCycle2)
+		// Always set the unused status flag bit to 1
+		c.SetStatusRegisterFlag(U, true)
 	}
+	clock_count++
 	c.cycles--
+}
+
+func (c *CPU6502) Complete() bool {
+	return c.cycles == byte(0x00)
 }
 
 func (c *CPU6502) Reset() {
@@ -1053,7 +1062,7 @@ func TYA(c *CPU6502) byte {
 // It is merely a convenience function to turn the binary instruction code into
 // human readable form. Its included as part of the emulator because it can take
 // advantage of many of the CPUs internal operations to do this.
-func (c *CPU6502) disassemble(start, stop Word) map[Word]string {
+func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 	var value byte = 0
 	var lo byte = 0
 	var hi byte = 0
@@ -1092,7 +1101,9 @@ func (c *CPU6502) disassemble(start, stop Word) map[Word]string {
 		var e error
 		var opcode byte
 		// Prefix line with instruction address
-		sInst.WriteString(fmt.Sprintf("$%s: ", hex(addr, 4)))
+		sInst.WriteString("$")
+		sInst.WriteString(hex(addr, 4))
+		sInst.WriteString(": ")
 
 		// Read instruction, and get its readable name
 		opcode, e = c.bus.Read(Word(addr), true)
