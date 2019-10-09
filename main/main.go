@@ -40,18 +40,19 @@ func init() {
 	bus = &Bus{cpu, memory}
 	cpu.ConnectBus(bus)
 
-	offset := Word(0x8000)
 	s := "A20A8E0000A2038E0100AC0000A900186D010088D0FA8D0200EAEAEA"
-	for i := 0; i < len(s); i++ {
-		bus.Write(offset+Word(i), s[i])
+	offset := Word(0x8000)
+	for i := 0; i < len(s); i += 2 {
+		bus.Write(offset, ByteToHex(s[i])<<4|ByteToHex(s[i+1]))
+		offset++
 	}
 	memory.mem[0xFFFC] = 0x00
 	memory.mem[0xFFFD] = 0x80
 	cpu.Reset()
-	mapAsm = cpu.Disassemble(0x0000, 0xFFFF)
 }
 
 func main() {
+	mapAsm = cpu.Disassemble(0x0000, 0xFFFF)
 	cpu.SetStatusRegisterFlag(V, true)
 	fmt.Println(cpu)
 	fmt.Println(rand.Float32())
@@ -177,28 +178,15 @@ func drawCpu(x, y float64) {
 	drawString(x+15+144, y, "I", redGreen(c.StatusRegister(I)))
 	drawString(x+15+160, y, "Z", redGreen(c.StatusRegister(Z)))
 	drawString(x+15+178, y, "C", redGreen(c.StatusRegister(C)))
-	drawString(x, y+12, fmt.Sprintln("PC: ", fmt.Sprintf("$%s [%d]", hex(uint32(c.pc), 4), c.pc)), colornames.White)
-	drawString(x, y+24, fmt.Sprintln("A : ", fmt.Sprintf("$%s   [%d]", hex(uint32(c.a), 2), c.a)), colornames.White)
-	drawString(x, y+36, fmt.Sprintln("X : ", fmt.Sprintf("$%s   [%d]", hex(uint32(c.x), 2), c.x)), colornames.White)
-	drawString(x, y+48, fmt.Sprintln("Y : ", fmt.Sprintf("$%s   [%d]", hex(uint32(c.y), 2), c.y)), colornames.White)
-	drawString(x, y+60, fmt.Sprintln("Stack P: ", fmt.Sprintf("$%s", hex(uint32(c.stkp), 4))), colornames.White)
+	drawString(x, y+12, fmt.Sprintln("PC: ", fmt.Sprintf("$%s [%d]", Hex(uint32(c.pc), 4), c.pc)), colornames.White)
+	drawString(x, y+24, fmt.Sprintln("A : ", fmt.Sprintf("$%s   [%d]", Hex(uint32(c.a), 2), c.a)), colornames.White)
+	drawString(x, y+36, fmt.Sprintln("X : ", fmt.Sprintf("$%s   [%d]", Hex(uint32(c.x), 2), c.x)), colornames.White)
+	drawString(x, y+48, fmt.Sprintln("Y : ", fmt.Sprintf("$%s   [%d]", Hex(uint32(c.y), 2), c.y)), colornames.White)
+	drawString(x, y+60, fmt.Sprintln("Stack P: ", fmt.Sprintf("$%s", Hex(uint32(c.stkp), 4))), colornames.White)
 	// drawString(x, y, fmt.Sprintln("Clock: ", c.cycles), colornames.White)
 	// drawString(x, y, fmt.Sprintln("GlobalClock: ", clock_count), colornames.White)
 	// drawString(x, y, fmt.Sprintln("ADD ABS: ", fmt.Sprintf("0x%X", c.address_abs)), colornames.White)
 	// drawString(x, y, fmt.Sprintln("ADD REL: ", fmt.Sprintf("0x%X", c.address_rel)), colornames.White)
-}
-
-func hex(n uint32, d int) string {
-	s := fmt.Sprintf("%X", n)
-	var b bytes.Buffer
-	// b.WriteString("0x")
-	if len(s) < d {
-		for i := d - len(s); i > 0; i-- {
-			b.WriteByte('0')
-		}
-	}
-	b.WriteString(s)
-	return b.String()
 }
 
 func drawRam(x, y float64, addr Word, rows, columns int) {
@@ -207,7 +195,7 @@ func drawRam(x, y float64, addr Word, rows, columns int) {
 	for row := 0; row < rows; row++ {
 		var sOffset bytes.Buffer
 		sOffset.WriteByte('$')
-		sOffset.WriteString(hex(uint32(addr), 4))
+		sOffset.WriteString(Hex(uint32(addr), 4))
 		sOffset.WriteByte(':')
 		for col := 0; col < columns; col++ {
 			v, e := bus.Read(addr, true)
@@ -219,7 +207,7 @@ func drawRam(x, y float64, addr Word, rows, columns int) {
 			} else {
 				sOffset.WriteByte(' ')
 			}
-			sOffset.WriteString(hex(uint32(v), 2))
+			sOffset.WriteString(Hex(uint32(v), 2))
 			addr += 1
 		}
 		drawString(nRamX, nRamY, sOffset.String(), colornames.White)

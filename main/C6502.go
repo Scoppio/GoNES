@@ -1107,6 +1107,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 		opcode, e = c.bus.Read(Word(addr), true)
 		logError(e)
 		addr++
+
 		sInst.WriteString(OpCodesLookupTable[opcode].name)
 		sInst.WriteByte(' ')
 

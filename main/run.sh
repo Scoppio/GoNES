@@ -1,1 +1,1 @@
-go run Bus.go C6502.go Datatypes.go main.go Memory.go
+go run main.go Bus.go C6502.go Datatypes.go Utils.go Memory.go 
