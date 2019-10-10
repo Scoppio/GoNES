@@ -55,17 +55,6 @@ func init() {
 	cpu.Reset()
 }
 
-func (m *Memory64k) PreLoadMemory(offset Word, data string) {
-	nOffset := offset
-	for i := 0; i < len(data); i += 2 {
-		m.mem[nOffset] = ByteToHex(data[i])<<4 | ByteToHex(data[i+1])
-		if i+2 < len(data) && data[i+2] == byte(' ') {
-			i++
-		}
-		nOffset++
-	}
-}
-
 func main() {
 	mapAsm = cpu.Disassemble(0x0000, 0xFFFF)
 	cpu.SetStatusRegisterFlag(V, true)
@@ -134,12 +123,12 @@ func run() {
 		win.Clear(colornames.Darkblue)
 
 		// drawPixels()
-		drawRam(2, 12, 0x0000, 16, 16)
-		drawRam(2, 196, 0x8000, 16, 16)
-		drawCpu(408, 12)
+		drawRAM(2, 12, 0x0000, 16, 16)
+		drawRAM(2, 196, 0x8000, 16, 16)
+		drawCPU(408, 12)
 		drawCode(408, 88, 26)
 		// Draw Stack
-		drawRam(2, 400, Word(0x01B0), 5, 16)
+		drawRAM(2, 400, Word(0x01B0), 5, 16)
 		imd.Draw(win)
 		basicTxt.Draw(win, pixel.IM)
 		imd.Clear()
@@ -176,14 +165,13 @@ func drawPixels() {
 	}
 }
 
-func drawCpu(x, y float64) {
+func drawCPU(x, y float64) {
 	c := cpu
 	redGreen := func(b bool) color.RGBA {
 		if b {
 			return colornames.White
-		} else {
-			return colornames.Red
 		}
+		return colornames.Red
 	}
 	drawString(x, y, "CPU State", colornames.White)
 	drawString(x+15+64, y, "N", redGreen(c.StatusRegister(N)))
@@ -205,9 +193,9 @@ func drawCpu(x, y float64) {
 	// drawString(x, y, fmt.Sprintln("ADD REL: ", fmt.Sprintf("0x%X", c.address_rel)), colornames.White)
 }
 
-func drawRam(x, y float64, addr Word, rows, columns int) {
-	nRamX := x
-	nRamY := y
+func drawRAM(x, y float64, addr Word, rows, columns int) {
+	RAMX := x
+	RAMY := y
 	for row := 0; row < rows; row++ {
 		var sOffset bytes.Buffer
 		sOffset.WriteByte('$')
@@ -224,10 +212,10 @@ func drawRam(x, y float64, addr Word, rows, columns int) {
 				sOffset.WriteByte(' ')
 			}
 			sOffset.WriteString(Hex(uint32(v), 2))
-			addr += 1
+			addr++
 		}
-		drawString(nRamX, nRamY, sOffset.String(), colornames.White)
-		nRamY += 11
+		drawString(RAMX, RAMY, sOffset.String(), colornames.White)
+		RAMY += 11
 	}
 }
 

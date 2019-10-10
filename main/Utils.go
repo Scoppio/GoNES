@@ -5,15 +5,17 @@ import (
 	"fmt"
 )
 
+// ByteToHex : Converts letters to its equivalent hexadecimal code
+// example: "A" becomes byte(0xA)
 func ByteToHex(val byte) byte {
 	//For uppercase A-F letters:
 	if val < 58 {
 		return val - 48
-	} else {
-		return val - 55
 	}
+	return val - 55
 }
 
+// Hex : converts a uint32 to its hexadecimal representation with leading zeroes
 func Hex(n uint32, d int) string {
 	s := fmt.Sprintf("%X", n)
 	var b bytes.Buffer
