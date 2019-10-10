@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 )
 
@@ -24,7 +23,7 @@ const (
 	// N : Negative flag
 	N = 7
 	// STACK : Stack memory address
-	STACK = Word(1 << 3)
+	STACK = Word(0x0100)
 )
 
 var (
@@ -213,7 +212,7 @@ func (c *CPU6502) NonMaskableInterruptRequest() {
 func (c *CPU6502) fetch() byte {
 	if !FnEquals(OpCodesLookupTable[c.opcode].addressmode, IMP) {
 		f, e := c.Read(c.addressAbs)
-		if !addressingError(e) {
+		if addressingError(e) {
 			//
 		}
 		c.fetched = f
@@ -232,7 +231,7 @@ func IMP(c *CPU6502) byte {
 // ZP0 : Zero Page Addressing
 func ZP0(c *CPU6502) byte {
 	add, e := c.Read(c.pc)
-	if !addressingError(e) {
+	if addressingError(e) {
 		add = 0
 	}
 	c.addressAbs = Word(add)
@@ -244,7 +243,7 @@ func ZP0(c *CPU6502) byte {
 // ZPY : Zero Page Adressing with Y
 func ZPY(c *CPU6502) byte {
 	add, e := c.Read(c.pc)
-	if !addressingError(e) {
+	if addressingError(e) {
 		add = 0
 	}
 	add += c.y
@@ -257,12 +256,12 @@ func ZPY(c *CPU6502) byte {
 // ABS : Absolute addressing
 func ABS(c *CPU6502) byte {
 	lo, e := c.Read(c.pc)
-	if !addressingError(e) {
+	if addressingError(e) {
 		lo = 0
 	}
 	c.pc++
 	hi, e2 := c.Read(c.pc)
-	if !addressingError(e2) {
+	if addressingError(e2) {
 		hi = 0
 	}
 	c.pc++
@@ -273,12 +272,12 @@ func ABS(c *CPU6502) byte {
 // ABY : Absolute addressing with Y offset
 func ABY(c *CPU6502) byte {
 	lo, e := c.Read(c.pc)
-	if !addressingError(e) {
+	if addressingError(e) {
 		lo = 0
 	}
 	c.pc++
 	hi, e2 := c.Read(c.pc)
-	if !addressingError(e2) {
+	if addressingError(e2) {
 		hi = 0
 	}
 	c.pc++
@@ -296,18 +295,18 @@ func ABY(c *CPU6502) byte {
 // IZX : Indirect Zero Page with X offset
 func IZX(c *CPU6502) byte {
 	t, e := c.Read(c.pc)
-	if !addressingError(e) {
+	if addressingError(e) {
 		t = 0
 	}
 	c.pc++
 
 	lo, e2 := c.Read((Word(t) + Word(c.x)) & 0x00ff)
-	if !addressingError(e2) {
+	if addressingError(e2) {
 		lo = 0
 	}
 
 	hi, e2 := c.Read((Word(t) + (Word(c.x) + 1)) & 0x00ff)
-	if !addressingError(e2) {
+	if addressingError(e2) {
 		hi = 0
 	}
 
@@ -325,7 +324,7 @@ func IMM(c *CPU6502) byte {
 // ZPX : Zero page addressing with X offset
 func ZPX(c *CPU6502) byte {
 	add, e := c.Read(c.pc)
-	if !addressingError(e) {
+	if addressingError(e) {
 		add = 0
 	}
 	add += c.x
@@ -338,7 +337,7 @@ func ZPX(c *CPU6502) byte {
 // REL : Relative addressing
 func REL(c *CPU6502) byte {
 	add, e := c.Read(c.pc)
-	if !addressingError(e) {
+	if addressingError(e) {
 		add = 0
 	}
 	c.pc++
@@ -353,12 +352,12 @@ func REL(c *CPU6502) byte {
 // ABX : Absolute addressing with X
 func ABX(c *CPU6502) byte {
 	lo, e := c.Read(c.pc)
-	if !addressingError(e) {
+	if addressingError(e) {
 		lo = 0
 	}
 	c.pc++
 	hi, e2 := c.Read(c.pc)
-	if !addressingError(e2) {
+	if addressingError(e2) {
 		hi = 0
 	}
 	c.pc++
@@ -376,18 +375,18 @@ func ABX(c *CPU6502) byte {
 // IND : Indirect Addressing
 func IND(c *CPU6502) byte {
 	pointerLow, e := c.Read(c.pc)
-	if !addressingError(e) {
+	if addressingError(e) {
 		pointerLow = 0
 	}
 	c.pc++
 	pointerHigh, e2 := c.Read(c.pc)
-	if !addressingError(e2) {
+	if addressingError(e2) {
 		pointerHigh = 0
 	}
 	c.pc++
 	ptr := (Word(pointerHigh) << 8) | Word(pointerLow)
 	lo, e3 := c.Read(ptr + 0)
-	if !addressingError(e3) {
+	if addressingError(e3) {
 		lo = 0
 	}
 	// Page Boundary Bug
@@ -399,7 +398,7 @@ func IND(c *CPU6502) byte {
 	}
 
 	hi, e4 := c.Read(readAddress)
-	if !addressingError(e4) {
+	if addressingError(e4) {
 		hi = 0
 	}
 	c.addressAbs = (Word(hi) << 8) | Word(lo)
@@ -409,18 +408,18 @@ func IND(c *CPU6502) byte {
 // IZY : Indirect Zero Page with Y
 func IZY(c *CPU6502) byte {
 	t, e := c.Read(c.pc)
-	if !addressingError(e) {
+	if addressingError(e) {
 		t = 0
 	}
 	c.pc++
 
 	lo, e2 := c.Read(Word(t) & 0x00ff)
-	if !addressingError(e2) {
+	if addressingError(e2) {
 		lo = 0
 	}
 
 	hi, e2 := c.Read((Word(t) + 1) & 0x00ff)
-	if !addressingError(e2) {
+	if addressingError(e2) {
 		hi = 0
 	}
 
@@ -546,8 +545,8 @@ func JSR(c *CPU6502) byte {
 	c.pc--
 	c.Write(STACK+Word(c.stkp), byte(c.pc>>8))
 	c.stkp--
-	c.Write(STACK+Word(c.stkp), byte(c.pc&0x00ff))
-
+	c.Write(STACK+Word(c.stkp), byte(c.pc))
+	c.stkp--
 	c.pc = c.addressAbs
 	return 0
 }
@@ -823,11 +822,11 @@ func BRK(c *CPU6502) byte {
 	c.stkp--
 	c.SetStatusRegisterFlag(B, false)
 	lo, e := c.Read(0xFFFE)
-	if !addressingError(e) {
+	if addressingError(e) {
 
 	}
 	hi, e2 := c.Read(0xFFFF)
-	if !addressingError(e2) {
+	if addressingError(e2) {
 
 	}
 	c.pc = Word(hi)<<8 | Word(lo)
@@ -892,7 +891,7 @@ func PLP(c *CPU6502) byte {
 	c.stkp++
 	var e error
 	c.status, e = c.Read(STACK + Word(c.stkp))
-	if !addressingError(e) {
+	if addressingError(e) {
 		//
 	}
 	c.SetStatusRegisterFlag(U, true)
@@ -902,17 +901,17 @@ func PLP(c *CPU6502) byte {
 // RTS : Return from sub routine
 func RTS(c *CPU6502) byte {
 	c.stkp++
-
 	lo, e := c.Read(STACK + Word(c.stkp))
-	if !addressingError(e) {
+	if addressingError(e) {
 		//
 	}
+	c.pc = Word(lo)
 	c.stkp++
 	hi, e2 := c.Read(STACK + Word(c.stkp))
-	if !addressingError(e2) {
+	if addressingError(e2) {
 		//
 	}
-	c.pc = (Word(hi) << 8) | Word(lo)
+	c.pc |= Word(hi) << 8
 	c.pc++
 	return 0
 }
@@ -1101,21 +1100,6 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 	bus := c.bus
 	mapLines := make(map[Word]string)
 
-	// A convenient utility to convert variables into
-	// hex strings because "modern C++"'s method with
-	// streams is atrocious
-	hex := func(n uint32, d int) string {
-		s := fmt.Sprintf("%X", n)
-		var b bytes.Buffer
-		if len(s) < d {
-			for i := d - len(s); i > 0; i-- {
-				b.WriteByte('0')
-			}
-		}
-		b.WriteString(s)
-		return b.String()
-	}
-
 	// Starting at the specified address we read an instruction
 	// byte, which in turn yields information from the lookup table
 	// as to how many additional bytes we need to read and what the
@@ -1131,7 +1115,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 		var opcode byte
 		// Prefix line with instruction address
 		sInst.WriteString("$")
-		sInst.WriteString(hex(addr, 4))
+		sInst.WriteString(Hex(addr, 4))
 		sInst.WriteString(": ")
 
 		// Read instruction, and get its readable name
@@ -1155,7 +1139,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 			logError(e)
 			addr++
 			sInst.WriteString("#$")
-			sInst.WriteString(hex(uint32(value), 2))
+			sInst.WriteString(Hex(uint32(value), 2))
 			sInst.WriteString(" {IMM}")
 		} else if FnEquals(OpCodesLookupTable[opcode].addressmode, ZP0) {
 			lo, e = bus.Read(Word(addr), true)
@@ -1164,7 +1148,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 			hi = 0x00
 
 			sInst.WriteString("$")
-			sInst.WriteString(hex(uint32(lo), 2))
+			sInst.WriteString(Hex(uint32(lo), 2))
 			sInst.WriteString(" {ZP0}")
 		} else if FnEquals(OpCodesLookupTable[opcode].addressmode, ZPX) {
 			lo, e = bus.Read(Word(addr), true)
@@ -1173,7 +1157,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 			hi = 0x00
 
 			sInst.WriteString("$")
-			sInst.WriteString(hex(uint32(lo), 2))
+			sInst.WriteString(Hex(uint32(lo), 2))
 			sInst.WriteString(", X {ZPX}")
 		} else if FnEquals(OpCodesLookupTable[opcode].addressmode, ZPY) {
 			lo, e = bus.Read(Word(addr), true)
@@ -1182,7 +1166,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 			hi = 0x00
 
 			sInst.WriteString("$")
-			sInst.WriteString(hex(uint32(lo), 2))
+			sInst.WriteString(Hex(uint32(lo), 2))
 			sInst.WriteString(", Y {ZPY}")
 		} else if FnEquals(OpCodesLookupTable[opcode].addressmode, IZX) {
 			lo, e = bus.Read(Word(addr), true)
@@ -1191,7 +1175,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 			hi = 0x00
 
 			sInst.WriteString("$")
-			sInst.WriteString(hex(uint32(lo), 2))
+			sInst.WriteString(Hex(uint32(lo), 2))
 			sInst.WriteString(", X {IZX}")
 		} else if FnEquals(OpCodesLookupTable[opcode].addressmode, IZY) {
 			lo, e = bus.Read(Word(addr), true)
@@ -1200,7 +1184,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 			hi = 0x00
 
 			sInst.WriteString("$")
-			sInst.WriteString(hex(uint32(lo), 2))
+			sInst.WriteString(Hex(uint32(lo), 2))
 			sInst.WriteString(", Y {IZY}")
 
 		} else if FnEquals(OpCodesLookupTable[opcode].addressmode, ABS) {
@@ -1212,7 +1196,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 			addr++
 
 			sInst.WriteString("$")
-			sInst.WriteString(hex(uint32(Word(hi)<<8|Word(lo)), 4))
+			sInst.WriteString(Hex(uint32(Word(hi)<<8|Word(lo)), 4))
 			sInst.WriteString(" {ABS}")
 
 		} else if FnEquals(OpCodesLookupTable[opcode].addressmode, ABX) {
@@ -1224,7 +1208,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 			addr++
 
 			sInst.WriteString("$")
-			sInst.WriteString(hex(uint32(Word(hi)<<8|Word(lo)), 4))
+			sInst.WriteString(Hex(uint32(Word(hi)<<8|Word(lo)), 4))
 			sInst.WriteString(", X {ABX}")
 		} else if FnEquals(OpCodesLookupTable[opcode].addressmode, ABY) {
 			lo, e = bus.Read(Word(addr), true)
@@ -1235,7 +1219,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 			addr++
 
 			sInst.WriteString("$")
-			sInst.WriteString(hex(uint32(Word(hi)<<8|Word(lo)), 4))
+			sInst.WriteString(Hex(uint32(Word(hi)<<8|Word(lo)), 4))
 			sInst.WriteString(", Y {ABY}")
 		} else if FnEquals(OpCodesLookupTable[opcode].addressmode, IND) {
 			lo, e = bus.Read(Word(addr), true)
@@ -1246,7 +1230,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 			addr++
 
 			sInst.WriteString("($")
-			sInst.WriteString(hex(uint32(Word(hi)<<8|Word(lo)), 4))
+			sInst.WriteString(Hex(uint32(Word(hi)<<8|Word(lo)), 4))
 			sInst.WriteString(") {IND}")
 		} else if FnEquals(OpCodesLookupTable[opcode].addressmode, REL) {
 			var val byte
@@ -1255,9 +1239,9 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 			addr++
 
 			sInst.WriteString("$")
-			sInst.WriteString(hex(uint32(val), 4))
+			sInst.WriteString(Hex(uint32(val), 4))
 			sInst.WriteString(" [$")
-			sInst.WriteString(hex(addr+uint32(value), 4))
+			sInst.WriteString(Hex(addr+uint32(value), 4))
 			sInst.WriteString("] {REL}")
 		}
 

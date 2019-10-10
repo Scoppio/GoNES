@@ -39,16 +39,31 @@ func init() {
 	memory := &Memory64k{}
 	bus = &Bus{cpu, memory}
 	cpu.ConnectBus(bus)
+	/*
 
-	s := "A20A8E0000A2038E0100AC0000A900186D010088D0FA8D0200EAEAEA"
-	offset := Word(0x8000)
-	for i := 0; i < len(s); i += 2 {
-		bus.Write(offset, ByteToHex(s[i])<<4|ByteToHex(s[i+1]))
-		offset++
-	}
+		LDA #$0F
+		STA $4015
+		RTS
+	*/
+	// s := "200080A200A000"
+	// s2 := "A90F8D154060"
+	s := "A2 0A 8E 00 00 A2 03 8E 01 00 AC 00 00 A9 00 18 6D 01 00 88 D0 FA 8D 02 00 EA EA EA"
+	// memory.PreLoadMemory(Word(0xC0E0), s)
+	memory.PreLoadMemory(Word(0x8000), s)
 	memory.mem[0xFFFC] = 0x00
 	memory.mem[0xFFFD] = 0x80
 	cpu.Reset()
+}
+
+func (m *Memory64k) PreLoadMemory(offset Word, data string) {
+	nOffset := offset
+	for i := 0; i < len(data); i += 2 {
+		m.mem[nOffset] = ByteToHex(data[i])<<4 | ByteToHex(data[i+1])
+		if i+2 < len(data) && data[i+2] == byte(' ') {
+			i++
+		}
+		nOffset++
+	}
 }
 
 func main() {
@@ -78,7 +93,6 @@ func run() {
 		if win.JustPressed(pixelgl.KeyR) {
 			// Reset
 			cpu.Reset()
-
 		}
 		if win.JustPressed(pixelgl.KeyI) {
 			// I
@@ -116,6 +130,7 @@ func run() {
 			}
 			mapAsm = cpu.Disassemble(0x0000, 0xFFFF)
 		}
+
 		win.Clear(colornames.Darkblue)
 
 		// drawPixels()
@@ -123,7 +138,8 @@ func run() {
 		drawRam(2, 196, 0x8000, 16, 16)
 		drawCpu(408, 12)
 		drawCode(408, 88, 26)
-
+		// Draw Stack
+		drawRam(2, 400, Word(0x01B0), 5, 16)
 		imd.Draw(win)
 		basicTxt.Draw(win, pixel.IM)
 		imd.Clear()
@@ -216,35 +232,29 @@ func drawRam(x, y float64, addr Word, rows, columns int) {
 }
 
 func drawCode(x, y float64, lines int) {
-	////
-	it_a := cpu.pc
-	nLineY := (lines>>1)*11 + int(y)
-	if val, ok := mapAsm[it_a]; ok {
-		drawString(x, float64(nLineY), val, colornames.Cyan)
-		for nLineY < ((lines * 10) + int(y)) {
-			it_a++
-			// if it_a != mapAsm.end() {
-			if val2, ok2 := mapAsm[it_a]; ok2 {
-				if len(val2) > 0 {
-					nLineY += 11
-					drawString(x, float64(nLineY), val2, colornames.White)
-
+	//
+	pc := cpu.pc
+	yPos := float64(lines>>1)*11 + y
+	if ida, ok := mapAsm[pc]; ok {
+		drawString(x, yPos, ida, colornames.Cyan)
+		for yPos < float64(lines)*10+y {
+			pc++
+			if ida, ok = mapAsm[pc]; ok {
+				if len(ida) > 0 {
+					yPos += 11
+					drawString(x, yPos, ida, colornames.White)
 				}
 			}
 		}
 	}
-
-	it_a = cpu.pc
-
-	nLineY = (lines>>1)*11 + int(y)
-	if _, ok3 := mapAsm[it_a]; ok3 {
-		for float64(nLineY) > y {
-			it_a--
-			if val4, ok4 := mapAsm[it_a]; ok4 {
-				if len(val4) > 0 {
-					nLineY -= 11
-					drawString(x, float64(nLineY), val4, colornames.White)
-				}
+	pc = cpu.pc
+	yPos = float64(lines>>1)*11 + y
+	if _, ok := mapAsm[pc]; ok {
+		for yPos > y {
+			pc--
+			if adi, ok := mapAsm[pc]; ok {
+				yPos -= 11
+				drawString(x, yPos, adi, colornames.White)
 			}
 		}
 	}
