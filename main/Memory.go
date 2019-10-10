@@ -24,3 +24,9 @@ func (m *Memory64k) PreLoadMemory(offset Word, data string) {
 		nOffset++
 	}
 }
+
+// SetCodeEntry : Set the address that starts your program
+func (m *Memory64k) SetCodeEntry(address Word) {
+	m.mem[0xFFFC] = byte(address)
+	m.mem[0xFFFD] = byte(address >> 8)
+}
