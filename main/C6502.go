@@ -7,28 +7,39 @@ import (
 )
 
 const (
-	C     = 0
-	Z     = 1
-	I     = 2
-	D     = 3
-	B     = 4
-	U     = 5
-	V     = 6
-	N     = 7
+	// C : Carry flag
+	C = 0
+	// Z : Zero flag
+	Z = 1
+	// I : flag
+	I = 2
+	// D : Decimal flag
+	D = 3
+	// B : Break flag
+	B = 4
+	// U : unised flag
+	U = 5
+	// V : Overflow flag
+	V = 6
+	// N : Negative flag
+	N = 7
+	// STACK : Stack memory address
 	STACK = Word(1 << 3)
 )
 
 var (
-	clock_count = 0
+	// ClockCount : Used for debug, counts total clocks so far
+	ClockCount = 0
+	// OpCodesLookupTable : table with all the instructions of the 6502
+	OpCodesLookupTable []Instruction
 )
 
+// CPU6502 : Struct that represents the 6502 chip
 type CPU6502 struct {
 	a, x, y, stkp, status, fetched, opcode, cycles byte
-	pc, address_abs, address_rel                   Word
+	pc, addressAbs, addressRel                     Word
 	bus                                            *Bus
 }
-
-var OpCodesLookupTable []Instruction
 
 func init() {
 	OpCodesLookupTable = []Instruction{
@@ -51,15 +62,18 @@ func init() {
 
 }
 
+// StatusRegister : Checks the state of the given flag
 func (c *CPU6502) StatusRegister(flag Flag) bool {
 	val := c.status & (1 << uint(flag))
 	return (val != 0)
 }
 
+// StatusRegisterAsWord : Checks the state of the given flag in a Word format
 func (c *CPU6502) StatusRegisterAsWord(flag Flag) Word {
 	return Word(c.status & (1 << uint(flag)))
 }
 
+// SetStatusRegisterFlag : Sets the state of the given flag
 func (c *CPU6502) SetStatusRegisterFlag(flag Flag, val bool) {
 	if val {
 		c.status |= byte(1 << uint(flag))
@@ -68,11 +82,13 @@ func (c *CPU6502) SetStatusRegisterFlag(flag Flag, val bool) {
 	}
 }
 
+// SetFlagsZeroAndNegative : Sets flags Z and N for a given value
 func (c *CPU6502) SetFlagsZeroAndNegative(val byte) {
 	c.SetStatusRegisterFlag(Z, val == 0x00)
 	c.SetStatusRegisterFlag(N, val&0x80 != 0)
 }
 
+// ConnectBus : connects the CPU to the Bus
 func (c *CPU6502) ConnectBus(bus *Bus) {
 	c.bus = bus
 }
@@ -85,6 +101,7 @@ func (c *CPU6502) Write(address Word, data byte) error {
 	return c.bus.Write(address, data)
 }
 
+// Clock : Does a single clock which will execute an instruction when reaches 0
 func (c *CPU6502) Clock() {
 	// execute
 	if c.cycles == byte(0x00) {
@@ -102,14 +119,17 @@ func (c *CPU6502) Clock() {
 		// Always set the unused status flag bit to 1
 		c.SetStatusRegisterFlag(U, true)
 	}
-	clock_count++
+
+	ClockCount++
 	c.cycles--
 }
 
+// Complete : Checks if the cycle has reached 0
 func (c *CPU6502) Complete() bool {
 	return c.cycles == byte(0x00)
 }
 
+// Reset : Resets the CPU and puts it in a known state
 func (c *CPU6502) Reset() {
 	c.a = 0
 	c.x = 0
@@ -117,23 +137,24 @@ func (c *CPU6502) Reset() {
 	c.stkp = 0xFD
 	c.status = 0x00
 	c.SetStatusRegisterFlag(U, true)
-	c.address_abs = 0xFFFC
-	lo, e := c.Read(c.address_abs + 0)
+	c.addressAbs = 0xFFFC
+	lo, e := c.Read(c.addressAbs + 0)
 	if addressingError(e) {
 		//
 	}
-	hi, e2 := c.Read(c.address_abs + 1)
+	hi, e2 := c.Read(c.addressAbs + 1)
 	if addressingError(e2) {
 		//
 	}
 	c.pc = Word(hi)<<8 | Word(lo)
-	c.address_rel = 0x0000
-	c.address_abs = 0x0000
+	c.addressRel = 0x0000
+	c.addressAbs = 0x0000
 	c.fetched = 0x00
 
 	c.cycles = 8
 }
 
+// InterruptRequest : Sets the system in a state to execute code from an interruption
 func (c *CPU6502) InterruptRequest() {
 	if !c.StatusRegister(I) {
 		c.Write(STACK+Word(c.stkp), byte((c.pc>>8)&0x00ff))
@@ -147,12 +168,12 @@ func (c *CPU6502) InterruptRequest() {
 		c.Write(STACK+Word(c.stkp), c.status)
 		c.stkp--
 
-		c.address_abs = 0xFFFE
-		lo, e := c.Read(c.address_abs + 0)
+		c.addressAbs = 0xFFFE
+		lo, e := c.Read(c.addressAbs + 0)
 		if addressingError(e) {
 			//
 		}
-		hi, e2 := c.Read(c.address_abs + 1)
+		hi, e2 := c.Read(c.addressAbs + 1)
 		if addressingError(e2) {
 			//
 		}
@@ -162,6 +183,7 @@ func (c *CPU6502) InterruptRequest() {
 	}
 }
 
+// NonMaskableInterruptRequest : Sets the system in a state to execute code from an interruption
 func (c *CPU6502) NonMaskableInterruptRequest() {
 	c.Write(STACK+Word(c.stkp), byte((c.pc>>8)&0x00ff))
 	c.stkp--
@@ -174,12 +196,12 @@ func (c *CPU6502) NonMaskableInterruptRequest() {
 	c.Write(STACK+Word(c.stkp), c.status)
 	c.stkp--
 
-	c.address_abs = 0xFFFA
-	lo, e := c.Read(c.address_abs + 0)
+	c.addressAbs = 0xFFFA
+	lo, e := c.Read(c.addressAbs + 0)
 	if addressingError(e) {
 		//
 	}
-	hi, e2 := c.Read(c.address_abs + 1)
+	hi, e2 := c.Read(c.addressAbs + 1)
 	if addressingError(e2) {
 		//
 	}
@@ -190,7 +212,7 @@ func (c *CPU6502) NonMaskableInterruptRequest() {
 
 func (c *CPU6502) fetch() byte {
 	if !FnEquals(OpCodesLookupTable[c.opcode].addressmode, IMP) {
-		f, e := c.Read(c.address_abs)
+		f, e := c.Read(c.addressAbs)
 		if !addressingError(e) {
 			//
 		}
@@ -201,38 +223,38 @@ func (c *CPU6502) fetch() byte {
 
 // ADDRESSING MODES
 
-// Implicit address
+// IMP : Implicit address
 func IMP(c *CPU6502) byte {
 	c.fetched = c.a
 	return 0
 }
 
-// Zero Page Addressing
+// ZP0 : Zero Page Addressing
 func ZP0(c *CPU6502) byte {
 	add, e := c.Read(c.pc)
 	if !addressingError(e) {
 		add = 0
 	}
-	c.address_abs = Word(add)
+	c.addressAbs = Word(add)
 	c.pc++
-	c.address_abs &= 0x00FF
+	c.addressAbs &= 0x00FF
 	return 0
 }
 
-// Zero Page Adressing with Y
+// ZPY : Zero Page Adressing with Y
 func ZPY(c *CPU6502) byte {
 	add, e := c.Read(c.pc)
 	if !addressingError(e) {
 		add = 0
 	}
 	add += c.y
-	c.address_abs = Word(add)
+	c.addressAbs = Word(add)
 	c.pc++
-	c.address_abs &= 0x00FF
+	c.addressAbs &= 0x00FF
 	return 0
 }
 
-// Absolute addressing
+// ABS : Absolute addressing
 func ABS(c *CPU6502) byte {
 	lo, e := c.Read(c.pc)
 	if !addressingError(e) {
@@ -244,11 +266,11 @@ func ABS(c *CPU6502) byte {
 		hi = 0
 	}
 	c.pc++
-	c.address_abs = (Word(hi) << 8) | Word(lo)
+	c.addressAbs = (Word(hi) << 8) | Word(lo)
 	return 0
 }
 
-// Absolute addressing with Y offset
+// ABY : Absolute addressing with Y offset
 func ABY(c *CPU6502) byte {
 	lo, e := c.Read(c.pc)
 	if !addressingError(e) {
@@ -260,18 +282,18 @@ func ABY(c *CPU6502) byte {
 		hi = 0
 	}
 	c.pc++
-	c.address_abs = (Word(hi) << 8) | Word(lo)
-	c.address_abs += Word(c.y)
+	c.addressAbs = (Word(hi) << 8) | Word(lo)
+	c.addressAbs += Word(c.y)
 	// If Y added to address overflows, then page has
 	// changed, therefore one extra cycle is needed
-	if (c.address_abs & 0xFF00) != (Word(hi) << 8) {
+	if (c.addressAbs & 0xFF00) != (Word(hi) << 8) {
 		return 1
 	}
 
 	return 0
 }
 
-// Indirect Zero Page with X offset
+// IZX : Indirect Zero Page with X offset
 func IZX(c *CPU6502) byte {
 	t, e := c.Read(c.pc)
 	if !addressingError(e) {
@@ -289,46 +311,46 @@ func IZX(c *CPU6502) byte {
 		hi = 0
 	}
 
-	c.address_abs = (Word(hi) << 8) | Word(lo)
+	c.addressAbs = (Word(hi) << 8) | Word(lo)
 	return 0
 }
 
-// Immediate addressing
+// IMM : Immediate addressing
 func IMM(c *CPU6502) byte {
-	c.address_abs = c.pc
+	c.addressAbs = c.pc
 	c.pc++
 	return 0
 }
 
-// Zero page addressing with X offset
+// ZPX : Zero page addressing with X offset
 func ZPX(c *CPU6502) byte {
 	add, e := c.Read(c.pc)
 	if !addressingError(e) {
 		add = 0
 	}
 	add += c.x
-	c.address_abs = Word(add)
+	c.addressAbs = Word(add)
 	c.pc++
-	c.address_abs &= 0x00FF
+	c.addressAbs &= 0x00FF
 	return 0
 }
 
-// Relative addressing
+// REL : Relative addressing
 func REL(c *CPU6502) byte {
 	add, e := c.Read(c.pc)
 	if !addressingError(e) {
 		add = 0
 	}
 	c.pc++
-	c.address_rel = Word(add)
-	if c.address_rel&0x80 != 0 {
-		c.address_rel += 0xFF00
+	c.addressRel = Word(add)
+	if c.addressRel&0x80 != 0 {
+		c.addressRel += 0xFF00
 	}
 
 	return 0
 }
 
-// Absolute addressing with X
+// ABX : Absolute addressing with X
 func ABX(c *CPU6502) byte {
 	lo, e := c.Read(c.pc)
 	if !addressingError(e) {
@@ -340,37 +362,37 @@ func ABX(c *CPU6502) byte {
 		hi = 0
 	}
 	c.pc++
-	c.address_abs = (Word(hi) << 8) | Word(lo)
-	c.address_abs += Word(c.x)
+	c.addressAbs = (Word(hi) << 8) | Word(lo)
+	c.addressAbs += Word(c.x)
 	// If X added to address overflows, then page has
 	// changed, therefore one extra cycle is needed
-	if (c.address_abs & 0xFF00) != (Word(hi) << 8) {
+	if (c.addressAbs & 0xFF00) != (Word(hi) << 8) {
 		return 1
 	}
 
 	return 0
 }
 
-// Indirect Addressing
+// IND : Indirect Addressing
 func IND(c *CPU6502) byte {
-	ptr_lo, e := c.Read(c.pc)
+	pointerLow, e := c.Read(c.pc)
 	if !addressingError(e) {
-		ptr_lo = 0
+		pointerLow = 0
 	}
 	c.pc++
-	ptr_hi, e2 := c.Read(c.pc)
+	pointerHigh, e2 := c.Read(c.pc)
 	if !addressingError(e2) {
-		ptr_hi = 0
+		pointerHigh = 0
 	}
 	c.pc++
-	ptr := (Word(ptr_hi) << 8) | Word(ptr_lo)
+	ptr := (Word(pointerHigh) << 8) | Word(pointerLow)
 	lo, e3 := c.Read(ptr + 0)
 	if !addressingError(e3) {
 		lo = 0
 	}
 	// Page Boundary Bug
 	readAddress := ptr
-	if ptr_lo == 0x00ff {
+	if pointerLow == 0x00ff {
 		readAddress &= 0x00FF
 	} else {
 		readAddress++
@@ -380,11 +402,11 @@ func IND(c *CPU6502) byte {
 	if !addressingError(e4) {
 		hi = 0
 	}
-	c.address_abs = (Word(hi) << 8) | Word(lo)
+	c.addressAbs = (Word(hi) << 8) | Word(lo)
 	return 0
 }
 
-// Indirect Zero Page with Y
+// IZY : Indirect Zero Page with Y
 func IZY(c *CPU6502) byte {
 	t, e := c.Read(c.pc)
 	if !addressingError(e) {
@@ -402,11 +424,11 @@ func IZY(c *CPU6502) byte {
 		hi = 0
 	}
 
-	c.address_abs = (Word(hi) << 8) | Word(lo)
-	c.address_abs += Word(c.y)
+	c.addressAbs = (Word(hi) << 8) | Word(lo)
+	c.addressAbs += Word(c.y)
 	// If Y added to address overflows, then page has
 	// changed, therefore one extra cycle is needed
-	if (c.address_abs & 0xFF00) != (Word(hi) << 8) {
+	if (c.addressAbs & 0xFF00) != (Word(hi) << 8) {
 		return 1
 	}
 	return 0
@@ -429,13 +451,13 @@ func logError(e error) {
 
 // Begin OPCODES //
 
-// Invalid OpCode
+// XXX : Invalid OpCode
 func XXX(c *CPU6502) byte {
 	//
 	return 0
 }
 
-// Add memory to accumulator with carry
+// ADC : Add memory to accumulator with carry
 // Function -> A = A + M
 // Flags -> C, Z, N, V
 func ADC(c *CPU6502) byte {
@@ -452,73 +474,73 @@ func ADC(c *CPU6502) byte {
 	return 1
 }
 
-// Branch if Carry
+// BCS : Branch if Carry
 func BCS(c *CPU6502) byte {
 	if c.StatusRegister(C) {
 		c.cycles++
-		c.address_abs = c.pc + c.address_rel
-		if (c.address_abs & 0xFF00) != (c.pc & 0xFF00) {
+		c.addressAbs = c.pc + c.addressRel
+		if (c.addressAbs & 0xFF00) != (c.pc & 0xFF00) {
 			c.cycles++
 		}
 
-		c.pc = c.address_abs
+		c.pc = c.addressAbs
 	}
 	return 0
 }
 
-// Branch if result not zero
+// BNE : Branch if result not zero
 func BNE(c *CPU6502) byte {
 	if !c.StatusRegister(Z) {
 		c.cycles++
-		c.address_abs = c.pc + c.address_rel
-		if (c.address_abs & 0xFF00) != (c.pc & 0xFF00) {
+		c.addressAbs = c.pc + c.addressRel
+		if (c.addressAbs & 0xFF00) != (c.pc & 0xFF00) {
 			c.cycles++
 		}
 
-		c.pc = c.address_abs
+		c.pc = c.addressAbs
 	}
 	return 0
 }
 
-// Branch on overflow set
+// BVS : Branch on overflow set
 func BVS(c *CPU6502) byte {
 	if c.StatusRegister(V) {
 		c.cycles++
-		c.address_abs = c.pc + c.address_rel
-		if (c.address_abs & 0xFF00) != (c.pc & 0xFF00) {
+		c.addressAbs = c.pc + c.addressRel
+		if (c.addressAbs & 0xFF00) != (c.pc & 0xFF00) {
 			c.cycles++
 		}
 
-		c.pc = c.address_abs
+		c.pc = c.addressAbs
 	}
 	return 0
 }
 
-// Clear Overflow Flag
+// CLV : Clear Overflow Flag
 func CLV(c *CPU6502) byte {
 	c.SetStatusRegisterFlag(V, false)
 	return 0
 }
 
-// Decrement value at memory location
+// DEC : Decrement value at memory location
 func DEC(c *CPU6502) byte {
 	c.fetch()
 	temp := c.fetched - 1
-	c.Write(c.address_abs, temp)
+	c.Write(c.addressAbs, temp)
 	c.SetFlagsZeroAndNegative(temp)
 	return 0
 }
 
-// Increase value at memory location
+// INC : Increase value at memory location
 func INC(c *CPU6502) byte {
 	c.fetch()
 	temp := c.fetched + 1
-	c.Write(c.address_abs, temp)
+	c.Write(c.addressAbs, temp)
 	c.SetFlagsZeroAndNegative(temp)
 	return 0
 }
 
-// Jump to Sub-Routine
+// JSR : Jump to Sub-Routine
 // Function -> Push PC to stack, then pc = address
 func JSR(c *CPU6502) byte {
 	c.pc--
@@ -526,11 +548,11 @@ func JSR(c *CPU6502) byte {
 	c.stkp--
 	c.Write(STACK+Word(c.stkp), byte(c.pc&0x00ff))
 
-	c.pc = c.address_abs
+	c.pc = c.addressAbs
 	return 0
 }
 
-// Shift one bit right - memory or accumulator
+// LSR : Shift one bit right - memory or accumulator
 func LSR(c *CPU6502) byte {
 	c.fetch()
 	c.SetStatusRegisterFlag(C, (c.fetched&0x01) == 1)
@@ -539,12 +561,12 @@ func LSR(c *CPU6502) byte {
 	if FnEquals(OpCodesLookupTable[c.opcode].addressmode, IMP) {
 		c.a = temp
 	} else {
-		c.Write(c.address_abs, temp)
+		c.Write(c.addressAbs, temp)
 	}
 	return 0
 }
 
-// Instruction: Push Status Register to Stack
+// PHP : Instruction: Push Status Register to Stack
 // Function:    status -> stack
 // Note:        Break flag is set to 1 before push
 func PHP(c *CPU6502) byte {
@@ -557,7 +579,7 @@ func PHP(c *CPU6502) byte {
 	return 0
 }
 
-// Rotate one bit Right
+// ROR : Rotate one bit Right
 func ROR(c *CPU6502) byte {
 	c.fetch()
 	temp := Word(c.fetched)>>1 | c.StatusRegisterAsWord(C)<<7
@@ -567,26 +589,26 @@ func ROR(c *CPU6502) byte {
 	if FnEquals(OpCodesLookupTable[c.opcode].addressmode, IMP) {
 		c.a = byte(temp & 0x00FF)
 	} else {
-		c.Write(c.address_abs, byte(temp&0x00FF))
+		c.Write(c.addressAbs, byte(temp&0x00FF))
 	}
 	return 0
 }
 
-// Instruction: Set Carry Flag
+// SEC : Instruction: Set Carry Flag
 // Function:    C = 1
 func SEC(c *CPU6502) byte {
 	c.SetStatusRegisterFlag(C, true)
 	return 0
 }
 
-// Instruction: Store X Register at Address
+// STX : Instruction: Store X Register at Address
 // Function:    M = X
 func STX(c *CPU6502) byte {
-	c.Write(c.address_abs, c.x)
+	c.Write(c.addressAbs, c.x)
 	return 0
 }
 
-// Instruction: Transfer Stack Pointer to X Register
+// TSX : Instruction: Transfer Stack Pointer to X Register
 // Function:    X = stack pointer
 // Flags Out:   N, Z
 func TSX(c *CPU6502) byte {
@@ -595,7 +617,7 @@ func TSX(c *CPU6502) byte {
 	return 0
 }
 
-// AND operation
+// AND : AND operation
 func AND(c *CPU6502) byte {
 	c.fetch()
 	c.a = c.a & c.fetched
@@ -604,41 +626,41 @@ func AND(c *CPU6502) byte {
 	return 1
 }
 
-// Branch if Equal
+// BEQ : Branch if Equal
 func BEQ(c *CPU6502) byte {
 	if c.StatusRegister(Z) {
 		c.cycles++
-		c.address_abs = c.pc + c.address_rel
-		if (c.address_abs & 0xFF00) != (c.pc & 0xFF00) {
+		c.addressAbs = c.pc + c.addressRel
+		if (c.addressAbs & 0xFF00) != (c.pc & 0xFF00) {
 			c.cycles++
 		}
 
-		c.pc = c.address_abs
+		c.pc = c.addressAbs
 	}
 	return 0
 }
 
-// Branch if Positive
+// BPL : Branch if Positive
 func BPL(c *CPU6502) byte {
 	if !c.StatusRegister(N) {
 		c.cycles++
-		c.address_abs = c.pc + c.address_rel
-		if (c.address_abs & 0xFF00) != (c.pc & 0xFF00) {
+		c.addressAbs = c.pc + c.addressRel
+		if (c.addressAbs & 0xFF00) != (c.pc & 0xFF00) {
 			c.cycles++
 		}
 
-		c.pc = c.address_abs
+		c.pc = c.addressAbs
 	}
 	return 0
 }
 
-// Clear Carry Bit
+// CLC : Clear Carry Bit
 func CLC(c *CPU6502) byte {
 	c.SetStatusRegisterFlag(C, false)
 	return 0
 }
 
-// Compare Accumulator
+// CMP : Compare Accumulator
 func CMP(c *CPU6502) byte {
 	c.fetch()
 	temp := Word(c.a) - Word(c.fetched)
@@ -648,7 +670,7 @@ func CMP(c *CPU6502) byte {
 	return 1
 }
 
-// Decrement value at X Register
+// DEX : Decrement value at X Register
 func DEX(c *CPU6502) byte {
 	c.x--
 	c.SetStatusRegisterFlag(Z, c.x == 0x00)
@@ -656,7 +678,7 @@ func DEX(c *CPU6502) byte {
 	return 0
 }
 
-// Increment value at X Register
+// INX : Increment value at X Register
 func INX(c *CPU6502) byte {
 	c.x++
 	c.SetStatusRegisterFlag(Z, c.x == 0x00)
@@ -664,7 +686,7 @@ func INX(c *CPU6502) byte {
 	return 0
 }
 
-// Instruction: Load The Accumulator
+// LDA : Instruction: Load The Accumulator
 // Function:    A = M
 // Flags Out:   N, Z
 func LDA(c *CPU6502) byte {
@@ -675,7 +697,7 @@ func LDA(c *CPU6502) byte {
 	return 1
 }
 
-// No Operation
+// NOP : No Operation
 // There are multiple NOP, therefore this code is not as
 // simple as it could be
 func NOP(c *CPU6502) byte {
@@ -695,7 +717,7 @@ func NOP(c *CPU6502) byte {
 	return 0
 }
 
-// Pop from stack
+// PLA : Pop from stack
 func PLA(c *CPU6502) byte {
 	c.stkp++
 	var e error
@@ -708,7 +730,7 @@ func PLA(c *CPU6502) byte {
 	return 0
 }
 
-// Return from Interrupt
+// RTI : Return from Interrupt
 func RTI(c *CPU6502) byte {
 	c.stkp++
 	var e error
@@ -733,20 +755,21 @@ func RTI(c *CPU6502) byte {
 	return 0
 }
 
-// Instruction: Set Decimal Flag
+// SED : Instruction: Set Decimal Flag
 // Function:    D = 1
 func SED(c *CPU6502) byte {
 	c.SetStatusRegisterFlag(D, true)
 	return 0
 }
 
-// Instruction: Store Y Register at Address
+// STY : Instruction: Store Y Register at Address
 // Function:    M = Y
 func STY(c *CPU6502) byte {
-	c.Write(c.address_abs, c.y)
+	c.Write(c.addressAbs, c.y)
 	return 0
 }
 
+// TXA : Instruction: Transfer X Register to Accumulator
 // Instruction: Transfer X Register to Accumulator
 // Function:    A = X
 // Flags Out:   N, Z
@@ -756,7 +779,7 @@ func TXA(c *CPU6502) byte {
 	return 0
 }
 
-// Instruction: Arithmetic Shift Left
+// ASL : Instruction: Arithmetic Shift Left
 // Function:    A = C <- (A << 1) <- 0
 // Flags Out:   N, Z, C
 func ASL(c *CPU6502) byte {
@@ -768,13 +791,13 @@ func ASL(c *CPU6502) byte {
 	if FnEquals(OpCodesLookupTable[c.opcode].addressmode, IMP) {
 		c.a = byte(temp & 0x00FF)
 	} else {
-		c.Write(c.address_abs, byte(temp&0x00FF))
+		c.Write(c.addressAbs, byte(temp&0x00FF))
 	}
 
 	return 0
 }
 
-// Test Bits in memory with accumulator
+// BIT : Test Bits in memory with accumulator
 func BIT(c *CPU6502) byte {
 	c.fetch()
 	temp := c.a & c.fetched
@@ -784,8 +807,8 @@ func BIT(c *CPU6502) byte {
 	return 0
 }
 
-// Instruction: Break
-// Function:    Program Sourced Interrupt
+// BRK : Instruction: Break
+// Function: Program Sourced Interrupt
 func BRK(c *CPU6502) byte {
 	c.pc++
 
@@ -811,13 +834,13 @@ func BRK(c *CPU6502) byte {
 	return 0
 }
 
-// Clear Decimal Register
+// CLD : Clear Decimal Register
 func CLD(c *CPU6502) byte {
 	c.SetStatusRegisterFlag(D, false)
 	return 0
 }
 
-// Compare X register
+// CPX : Compare X register
 func CPX(c *CPU6502) byte {
 	c.fetch()
 	temp := Word(c.x) - Word(c.fetched)
@@ -827,7 +850,7 @@ func CPX(c *CPU6502) byte {
 	return 1
 }
 
-// Decrement value from Y register
+// DEY : Decrement value from Y register
 func DEY(c *CPU6502) byte {
 	c.y--
 	c.SetStatusRegisterFlag(Z, c.y == 0x00)
@@ -835,7 +858,7 @@ func DEY(c *CPU6502) byte {
 	return 0
 }
 
-// Increment value at Y register
+// INY : Increment value at Y register
 func INY(c *CPU6502) byte {
 	c.y++
 	c.SetStatusRegisterFlag(Z, c.y == 0x00)
@@ -843,7 +866,7 @@ func INY(c *CPU6502) byte {
 	return 0
 }
 
-// Instruction: Load The X Register
+// LDX : Instruction: Load The X Register
 // Function:    X = M
 // Flags Out:   N, Z
 func LDX(c *CPU6502) byte {
@@ -853,7 +876,7 @@ func LDX(c *CPU6502) byte {
 	return 1
 }
 
-// Instruction: Bitwise Logic OR
+// ORA : Instruction: Bitwise Logic OR
 // Function:    A = A | M
 // Flags Out:   N, Z
 func ORA(c *CPU6502) byte {
@@ -863,7 +886,7 @@ func ORA(c *CPU6502) byte {
 	return 1
 }
 
-// Instruction: Pop Status Register off Stack
+// PLP : Instruction: Pop Status Register off Stack
 // Function:    Status <- stack
 func PLP(c *CPU6502) byte {
 	c.stkp++
@@ -876,7 +899,7 @@ func PLP(c *CPU6502) byte {
 	return 0
 }
 
-// Return from sub routine
+// RTS : Return from sub routine
 func RTS(c *CPU6502) byte {
 	c.stkp++
 
@@ -894,14 +917,14 @@ func RTS(c *CPU6502) byte {
 	return 0
 }
 
-// Instruction: Set Interrupt Flag / Enable Interrupts
+// SEI : Instruction: Set Interrupt Flag / Enable Interrupts
 // Function:    I = 1
 func SEI(c *CPU6502) byte {
 	c.SetStatusRegisterFlag(I, true)
 	return 0
 }
 
-// Instruction: Transfer Accumulator to Y Register
+// TAX : Instruction: Transfer Accumulator to Y Register
 // Function:    Y = A
 // Flags Out:   N, Z
 func TAX(c *CPU6502) byte {
@@ -909,57 +932,65 @@ func TAX(c *CPU6502) byte {
 	c.SetFlagsZeroAndNegative(c.y)
 	return 0
 }
-func TXS(c *CPU6502) byte { return 0 }
 
-// Branch if Carry Clear
+// TXS : Instruction: Transfer Stack Pointer to X Register
+// Function:    X = stack pointer
+// Flags Out:   N, Z
+func TXS(c *CPU6502) byte {
+	c.x = c.stkp
+	c.SetFlagsZeroAndNegative(c.x)
+	return 0
+}
+
+// BCC : Branch if Carry Clear
 func BCC(c *CPU6502) byte {
 	if !c.StatusRegister(C) {
 		c.cycles++
-		c.address_abs = c.pc + c.address_rel
-		if (c.address_abs & 0xFF00) != (c.pc & 0xFF00) {
+		c.addressAbs = c.pc + c.addressRel
+		if (c.addressAbs & 0xFF00) != (c.pc & 0xFF00) {
 			c.cycles++
 		}
 
-		c.pc = c.address_abs
+		c.pc = c.addressAbs
 	}
 	return 0
 }
 
-// Branch if Negative
+// BMI : Branch if Negative
 func BMI(c *CPU6502) byte {
 	if c.StatusRegister(C) {
 		c.cycles++
-		c.address_abs = c.pc + c.address_rel
-		if (c.address_abs & 0xFF00) != (c.pc & 0xFF00) {
+		c.addressAbs = c.pc + c.addressRel
+		if (c.addressAbs & 0xFF00) != (c.pc & 0xFF00) {
 			c.cycles++
 		}
 
-		c.pc = c.address_abs
+		c.pc = c.addressAbs
 	}
 	return 0
 }
 
-// Branch if Overflows
+// BVC : Branch if Overflows
 func BVC(c *CPU6502) byte {
 	if !c.StatusRegister(V) {
 		c.cycles++
-		c.address_abs = c.pc + c.address_rel
-		if (c.address_abs & 0xFF00) != (c.pc & 0xFF00) {
+		c.addressAbs = c.pc + c.addressRel
+		if (c.addressAbs & 0xFF00) != (c.pc & 0xFF00) {
 			c.cycles++
 		}
 
-		c.pc = c.address_abs
+		c.pc = c.addressAbs
 	}
 	return 0
 }
 
-// Clear Interrup Flag
+// CLI : Clear Interrup Flag
 func CLI(c *CPU6502) byte {
 	c.SetStatusRegisterFlag(I, false)
 	return 0
 }
 
-// Compare Y Register
+// CPY : Compare Y Register
 func CPY(c *CPU6502) byte {
 	c.fetch()
 	temp := Word(c.y) - Word(c.fetched)
@@ -969,7 +1000,7 @@ func CPY(c *CPU6502) byte {
 	return 1
 }
 
-// Bitwise XOR
+// EOR : Bitwise XOR
 func EOR(c *CPU6502) byte {
 	c.fetch()
 	c.a = c.a ^ c.fetched
@@ -978,14 +1009,14 @@ func EOR(c *CPU6502) byte {
 	return 1
 }
 
-// Jump to location
+// JMP : Jump to location
 // Function -> pc = address
 func JMP(c *CPU6502) byte {
-	c.pc = c.address_abs
+	c.pc = c.addressAbs
 	return 0
 }
 
-// Instruction: Load The Y Register
+// LDY : Instruction: Load The Y Register
 // Function:    Y = M
 // Flags Out:   N, Z
 func LDY(c *CPU6502) byte {
@@ -997,14 +1028,14 @@ func LDY(c *CPU6502) byte {
 	return 1
 }
 
-// Push accumulator to Stack
+// PHA : Push accumulator to Stack
 func PHA(c *CPU6502) byte {
 	c.Write(STACK+Word(c.stkp), c.a)
 	c.stkp--
 	return 0
 }
 
-// Rotate One Bit Left (memory or accumulator)
+// ROL : Rotate One Bit Left (memory or accumulator)
 func ROL(c *CPU6502) byte {
 	c.fetch()
 	temp := Word(c.fetched)<<1 | c.StatusRegisterAsWord(C)
@@ -1014,12 +1045,12 @@ func ROL(c *CPU6502) byte {
 	if FnEquals(OpCodesLookupTable[c.opcode].addressmode, IMP) {
 		c.a = byte(temp & 0x00FF)
 	} else {
-		c.Write(c.address_abs, byte(temp&0x00FF))
+		c.Write(c.addressAbs, byte(temp&0x00FF))
 	}
 	return 0
 }
 
-// Subtract Operation
+// SBC : Subtract Operation
 func SBC(c *CPU6502) byte {
 	c.fetch()
 	flagVal := c.StatusRegisterAsWord(C)
@@ -1033,13 +1064,13 @@ func SBC(c *CPU6502) byte {
 	return 1
 }
 
-// Store Accumulator at Address
+// STA : Store Accumulator at Address
 func STA(c *CPU6502) byte {
-	c.Write(c.address_abs, c.a)
+	c.Write(c.addressAbs, c.a)
 	return 0
 }
 
-// Instruction: Transfer Accumulator to Y Register
+// TAY : Instruction: Transfer Accumulator to Y Register
 // Function:    Y = A
 // Flags Out:   N, Z
 func TAY(c *CPU6502) byte {
@@ -1048,7 +1079,7 @@ func TAY(c *CPU6502) byte {
 	return 0
 }
 
-// Instruction: Transfer Y Register to Accumulator
+// TYA : Instruction: Transfer Y Register to Accumulator
 // Function:    A = Y
 // Flags Out:   N, Z
 func TYA(c *CPU6502) byte {
@@ -1057,7 +1088,7 @@ func TYA(c *CPU6502) byte {
 	return 0
 }
 
-// This is the disassembly function. Its workings are not required for emulation.
+// Disassemble : This is the disassembly function. Its workings are not required for emulation.
 // It is merely a convenience function to turn the binary instruction code into
 // human readable form. Its included as part of the emulator because it can take
 // advantage of many of the CPUs internal operations to do this.
@@ -1065,7 +1096,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 	var value byte = 0
 	var lo byte = 0
 	var hi byte = 0
-	var line_addr Word = 0
+	var lineAddr Word = 0
 	var addr uint32 = uint32(start)
 	bus := c.bus
 	mapLines := make(map[Word]string)
@@ -1094,7 +1125,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 	// As the instruction is decoded, a std::string is assembled
 	// with the readable output
 	for addr <= uint32(stop) {
-		line_addr = Word(addr)
+		lineAddr = Word(addr)
 		var sInst bytes.Buffer
 		var e error
 		var opcode byte
@@ -1234,7 +1265,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 		// address as the key. This makes it convenient to look for later
 		// as the instructions are variable in length, so a straight up
 		// incremental index is not sufficient.
-		mapLines[line_addr] = sInst.String()
+		mapLines[lineAddr] = sInst.String()
 	}
 
 	return mapLines

@@ -6,19 +6,20 @@ import (
 	"testing"
 )
 
-var t_bus *Bus
-var cpu *CPU6502
+var (
+	testCPU *CPU6502
+)
 
 const (
-	ZERO_B byte = 0
-	ZERO_W Word = 0
+	ZeroB byte = 0
+	ZeroW Word = 0
 )
 
 func init() {
-	cpu = &CPU6502{}
+	testCPU = &CPU6502{}
 	memory := &Memory64k{}
-	t_bus = &Bus{cpu, memory}
-	cpu.ConnectBus(t_bus)
+	testBus := &Bus{testCPU, memory}
+	cpu.ConnectBus(testBus)
 }
 
 func assertNil(t *testing.T, got interface{}) {
@@ -57,13 +58,13 @@ func assertEqualsW(t *testing.T, expect Word, got Word) {
 }
 
 func TestReset(t *testing.T) {
+	cpu := testCPU
 	cpu.Reset()
-
 	t.Logf("status = 0b%s", strconv.FormatInt(int64(cpu.status), 2))
 
-	assertEqualsB(t, ZERO_B, cpu.x)
-	assertEqualsB(t, ZERO_B, cpu.y)
-	assertEqualsB(t, ZERO_B, cpu.a)
+	assertEqualsB(t, ZeroB, cpu.x)
+	assertEqualsB(t, ZeroB, cpu.y)
+	assertEqualsB(t, ZeroB, cpu.a)
 	assertEqualsB(t, byte(0xFD), cpu.stkp)
 	assertFalse(t, cpu.StatusRegister(C))
 	assertFalse(t, cpu.StatusRegister(Z))
@@ -73,19 +74,21 @@ func TestReset(t *testing.T) {
 	assertTrue(t, cpu.StatusRegister(U))
 	assertFalse(t, cpu.StatusRegister(V))
 	assertFalse(t, cpu.StatusRegister(N))
-	assertEqualsW(t, ZERO_W, cpu.address_abs)
-	assertEqualsW(t, ZERO_W, cpu.address_rel)
-	assertEqualsW(t, ZERO_W, cpu.pc)
-	assertEqualsB(t, ZERO_B, cpu.fetched)
+	assertEqualsW(t, ZeroW, cpu.addressAbs)
+	assertEqualsW(t, ZeroW, cpu.addressRel)
+	assertEqualsW(t, ZeroW, cpu.pc)
+	assertEqualsB(t, ZeroB, cpu.fetched)
 	assertEqualsB(t, byte(8), cpu.cycles)
 }
 
 func TestOperationADC(t *testing.T) {
+
+	cpu := testCPU
 	cpu.Reset()
 
 	cpu.a = byte(0x2)
-	cpu.address_abs = Word(0xf000)
-	t_bus.Write(cpu.address_abs, byte(0x3))
+	cpu.addressAbs = Word(0xf000)
+	cpu.bus.Write(cpu.addressAbs, byte(0x3))
 
 	ADC(cpu)
 
@@ -94,11 +97,12 @@ func TestOperationADC(t *testing.T) {
 }
 
 func TestOperationADCWithCarry(t *testing.T) {
+	cpu := testCPU
 	cpu.Reset()
 
 	cpu.a = byte(0xFE)
-	cpu.address_abs = Word(0xf000)
-	t_bus.Write(cpu.address_abs, byte(0x3))
+	cpu.addressAbs = Word(0xf000)
+	cpu.bus.Write(cpu.addressAbs, byte(0x3))
 
 	ADC(cpu)
 
@@ -108,12 +112,13 @@ func TestOperationADCWithCarry(t *testing.T) {
 }
 
 func TestOperationADCWithOverflow(t *testing.T) {
+	cpu := testCPU
 	cpu.Reset()
 	v := -10
 	z := -127
 	cpu.a = byte(v)
-	cpu.address_abs = Word(0xf000)
-	t_bus.Write(cpu.address_abs, byte(z))
+	cpu.addressAbs = Word(0xf000)
+	cpu.bus.Write(cpu.addressAbs, byte(z))
 
 	ADC(cpu)
 
@@ -122,20 +127,22 @@ func TestOperationADCWithOverflow(t *testing.T) {
 }
 
 func TestOperationPHP(t *testing.T) {
+	cpu := testCPU
 	cpu.Reset()
 
-	old_status := byte(0x30)
+	oldStatus := byte(0x30)
 
 	stkp := cpu.stkp
 	PHP(cpu)
-	stacked_status, e := cpu.Read(STACK + Word(stkp))
+	stackedStatus, e := cpu.Read(STACK + Word(stkp))
 	assertNil(t, e)
-	assertEqualsB(t, old_status, stacked_status)
+	assertEqualsB(t, oldStatus, stackedStatus)
 }
 
 func TestOperationJSR(t *testing.T) {
+	cpu := testCPU
 	cpu.Reset()
-	cpu.address_abs = Word(0xABCD)
+	cpu.addressAbs = Word(0xABCD)
 	cpu.pc = Word(2)
 
 	JSR(cpu)
