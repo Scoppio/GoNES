@@ -248,25 +248,6 @@ func drawCode(x, y float64, lines int) {
 			}
 		}
 	}
-
-	// ////
-	// text := c.Disassemble(memOffset, memOffset+Word(rows*2))
-	// i := 0
-	// for row > 0 {
-	// 	l := len(text[memOffset+Word(i)])
-	// 	line := 0
-	// 	if l > 0 {
-	// 		line++
-	// 		y = y + float64(14*line)
-	// 		color := colornames.White
-	// 		if c.pc == memOffset+Word(i) {
-	// 			color = colornames.Greenyellow
-	// 		}
-	// 		drawString(x, y, text[memOffset+Word(i)], color)
-	// 		row--
-	// 	}
-	// 	i++
-	// }
 }
 
 func drawString(x, y float64, message string, color color.RGBA) {

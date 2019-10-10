@@ -52,19 +52,19 @@ func init() {
 }
 
 func (c *CPU6502) StatusRegister(flag Flag) bool {
-	val := c.status & (1 << flag)
+	val := c.status & (1 << uint(flag))
 	return (val != 0)
 }
 
 func (c *CPU6502) StatusRegisterAsWord(flag Flag) Word {
-	return Word(c.status & (1 << flag))
+	return Word(c.status & (1 << uint(flag)))
 }
 
 func (c *CPU6502) SetStatusRegisterFlag(flag Flag, val bool) {
 	if val {
-		c.status |= byte(1 << flag)
+		c.status |= byte(1 << uint(flag))
 	} else {
-		c.status &= ^byte(1 << flag)
+		c.status &= ^byte(1 << uint(flag))
 	}
 }
 
