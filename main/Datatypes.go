@@ -8,17 +8,24 @@ import (
 // Flag : int that defines which register flag is active
 type Flag int
 
-// Word : two bytes
-type Word uint16
-
-// Reader : something that can read memory
-type Reader interface {
-	Read(address rune, readOnly bool) (data byte, err error)
+// CPUReader : something that can read memory
+type CPUReader interface {
+	CPURead(address rune, readOnly bool) (data byte, err error)
 }
 
-// Writer : something that can write to memory
-type Writer interface {
-	Write(address rune, data byte) error
+// CPUWriter : something that can write to memory
+type CPUWriter interface {
+	CPUWrite(address rune, data byte) error
+}
+
+// PPUReader : something that can read memory
+type PPUReader interface {
+	PPURead(address rune, readOnly bool) (data byte, err error)
+}
+
+// PPUWriter : something that can write to memory
+type PPUWriter interface {
+	PPUWrite(address rune, data byte) error
 }
 
 // Completable : if the total number of cycles completed
@@ -36,13 +43,11 @@ type Resetable interface {
 	Reset()
 }
 
-// CPU : Functions pertaining to a cpu
-type CPU interface {
-	Resetable
-	Completable
-	Clocker
-	Reader
-	Writer
+type Accessable interface {
+	CPUWriter
+	CPUReader
+	PPUWriter
+	PPUReader
 }
 
 // Operate : opcode operation

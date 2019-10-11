@@ -12,13 +12,14 @@ var (
 
 const (
 	ZeroB byte = 0
-	ZeroW Word = 0
+	ZeroW rune = 0
 )
 
 func init() {
 	testCPU = &CPU6502{}
-	memory := &Memory64k{}
-	testBus := &Bus{testCPU, memory}
+	ppu := &PPU2C02{}
+
+	testBus := CreateBus(testCPU, ppu, nil)
 	cpu.ConnectBus(testBus)
 }
 
@@ -50,7 +51,7 @@ func assertEqualsB(t *testing.T, expect byte, got byte) {
 	}
 }
 
-func assertEqualsW(t *testing.T, expect Word, got Word) {
+func assertEqualsW(t *testing.T, expect rune, got rune) {
 	if expect != got {
 		t.Errorf("Expected variable to be: %x, got: %x", expect, got)
 		t.Log(string(debug.Stack()))
@@ -87,8 +88,8 @@ func TestOperationADC(t *testing.T) {
 	cpu.Reset()
 
 	cpu.a = byte(0x2)
-	cpu.addressAbs = Word(0xf000)
-	cpu.bus.Write(cpu.addressAbs, byte(0x3))
+	cpu.addressAbs = rune(0xf000)
+	cpu.bus.CPUWrite(cpu.addressAbs, byte(0x3))
 
 	ADC(cpu)
 
@@ -101,8 +102,8 @@ func TestOperationADCWithCarry(t *testing.T) {
 	cpu.Reset()
 
 	cpu.a = byte(0xFE)
-	cpu.addressAbs = Word(0xf000)
-	cpu.bus.Write(cpu.addressAbs, byte(0x3))
+	cpu.addressAbs = rune(0xf000)
+	cpu.bus.CPUWrite(cpu.addressAbs, byte(0x3))
 
 	ADC(cpu)
 
@@ -117,8 +118,8 @@ func TestOperationADCWithOverflow(t *testing.T) {
 	v := -10
 	z := -127
 	cpu.a = byte(v)
-	cpu.addressAbs = Word(0xf000)
-	cpu.bus.Write(cpu.addressAbs, byte(z))
+	cpu.addressAbs = rune(0xf000)
+	cpu.bus.CPUWrite(cpu.addressAbs, byte(z))
 
 	ADC(cpu)
 
@@ -134,7 +135,7 @@ func TestOperationPHP(t *testing.T) {
 
 	stkp := cpu.stkp
 	PHP(cpu)
-	stackedStatus, e := cpu.Read(STACK + Word(stkp))
+	stackedStatus, e := cpu.CPURead(STACK + rune(stkp))
 	assertNil(t, e)
 	assertEqualsB(t, oldStatus, stackedStatus)
 }
@@ -142,10 +143,10 @@ func TestOperationPHP(t *testing.T) {
 func TestOperationJSR(t *testing.T) {
 	cpu := testCPU
 	cpu.Reset()
-	cpu.addressAbs = Word(0xABCD)
-	cpu.pc = Word(2)
+	cpu.addressAbs = rune(0xABCD)
+	cpu.pc = rune(2)
 
 	JSR(cpu)
 
-	assertEqualsW(t, Word(0xABCD), cpu.pc)
+	assertEqualsW(t, rune(0xABCD), cpu.pc)
 }

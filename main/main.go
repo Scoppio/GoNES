@@ -25,31 +25,26 @@ const (
 )
 
 var (
-	bus      *Bus
+	Nes      *Bus
 	cpu      *CPU6502
 	basicTxt *text.Text
-	mapAsm   map[Word]string
+	mapAsm   map[rune]string
 	frames   = 0
 	second   = time.Tick(time.Second)
 	atlas    = text.NewAtlas(basicfont.Face7x13, text.ASCII, text.RangeTable(unicode.Latin))
 )
 
 func init() {
-	cpu = &CPU6502{}
-	memory := &Memory64k{}
-	bus = &Bus{cpu, memory}
-	cpu.ConnectBus(bus)
-	s := "A2 0A 8E 00 00 A2 03 8E 01 00 AC 00 00 A9 00 18 6D 01 00 88 D0 FA 8D 02 00 EA EA EA"
-	memory.PreLoadMemory(Word(0x8000), s)
-	memory.SetCodeEntry(0x8000)
+	Nes = CreateBus(CreateCPU(), CreatePPU())
+	Nes.InsertCartridge(LoadCartridge("../testroms/nestest.nes"))
+	cpu = Nes.cpu
+	cpu.ConnectBus(Nes)
 	cpu.Reset()
 }
 
 func main() {
-	mapAsm = cpu.Disassemble(0x0000, 0xFFFF)
-	cpu.SetStatusRegisterFlag(V, true)
-	fmt.Println(cpu)
-	fmt.Println(rand.Float32())
+	mapAsm = cpu.Disassemble(0x0000, 0x07FF)
+	Nes.Reset()
 	pixelgl.Run(run)
 }
 
@@ -72,53 +67,25 @@ func run() {
 		if win.JustPressed(pixelgl.KeyR) {
 			// Reset
 			cpu.Reset()
-		}
-		if win.JustPressed(pixelgl.KeyI) {
-			// I
-			cpu.SetStatusRegisterFlag(I, !cpu.StatusRegister(I))
-		}
-		if win.JustPressed(pixelgl.KeyN) {
-			// N
-			cpu.SetStatusRegisterFlag(N, !cpu.StatusRegister(N))
-		}
-		if win.JustPressed(pixelgl.KeyV) {
-			// V
-			cpu.SetStatusRegisterFlag(V, !cpu.StatusRegister(V))
+			for !cpu.Complete() {
+				cpu.Clock()
+			}
 		}
 		if win.JustPressed(pixelgl.KeyC) {
-			// C
-			cpu.SetStatusRegisterFlag(C, !cpu.StatusRegister(C))
-		}
-		if win.JustPressed(pixelgl.KeyZ) {
-			// Z
-			cpu.SetStatusRegisterFlag(Z, !cpu.StatusRegister(Z))
-		}
-		if win.JustPressed(pixelgl.KeyB) {
-			// B
-			cpu.SetStatusRegisterFlag(B, !cpu.StatusRegister(B))
-		}
-		if win.JustPressed(pixelgl.KeyU) {
-			// U
-			cpu.SetStatusRegisterFlag(U, !cpu.StatusRegister(U))
-		}
-		if win.JustPressed(pixelgl.KeySpace) {
-			// SPACE
+			// I
 			cpu.Clock()
 			for !cpu.Complete() {
 				cpu.Clock()
 			}
-			mapAsm = cpu.Disassemble(0x0000, 0xFFFF)
 		}
 
 		win.Clear(colornames.Darkblue)
 
-		// drawPixels()
+		drawCPU(516, 2)
+		drawCode(516, 72, 26)
+
 		drawRAM(2, 12, 0x0000, 16, 16)
-		drawRAM(2, 196, 0x8000, 16, 16)
-		drawCPU(408, 12)
-		drawCode(408, 88, 26)
-		// Draw Stack
-		drawRAM(2, 400, Word(0x01B0), 5, 16)
+
 		imd.Draw(win)
 		basicTxt.Draw(win, pixel.IM)
 		imd.Clear()
@@ -183,7 +150,7 @@ func drawCPU(x, y float64) {
 	// drawString(x, y, fmt.Sprintln("ADD REL: ", fmt.Sprintf("0x%X", c.address_rel)), colornames.White)
 }
 
-func drawRAM(x, y float64, addr Word, rows, columns int) {
+func drawRAM(x, y float64, addr rune, rows, columns int) {
 	RAMX := x
 	RAMY := y
 	for row := 0; row < rows; row++ {
@@ -192,7 +159,7 @@ func drawRAM(x, y float64, addr Word, rows, columns int) {
 		sOffset.WriteString(Hex(uint32(addr), 4))
 		sOffset.WriteByte(':')
 		for col := 0; col < columns; col++ {
-			v, e := bus.Read(addr, true)
+			v, e := Nes.CPURead(addr, true)
 			if e != nil {
 				//
 			}
