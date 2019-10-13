@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"image/color"
+	"math/rand"
 )
 
 type PPU2C02 struct {
@@ -10,7 +11,7 @@ type PPU2C02 struct {
 	cart               *Cartridge
 	nameTable          [2][1024]byte
 	paletteTable       [32]byte
-	paletteScreen      [0x40]*color.RGBA
+	paletteScreen      [64]*color.RGBA
 	spriteScreen       *Sprite    // Sprite(256, 240)
 	spriteNameTable    [2]*Sprite // Sprite (128, 128), Sprite(128, 128)
 	spritePatternTable [2]*Sprite // Sprite(256, 240), Sprite(256, 240)
@@ -198,6 +199,14 @@ func (p *PPU2C02) CPUWrite(address Word, data byte) error {
 
 // Clock : Bus clock implementation pulses the clock to all things attached to it
 func (p *PPU2C02) Clock() {
+
+	c := byte(0x30)
+	if rand.Int()%2 == 0 {
+		c = byte(0x3F)
+	}
+
+	p.GetScreen().SetPixel(int(p.cycle)-1, int(p.scanLine), p.paletteScreen[c])
+
 	p.cycle++
 	if p.cycle >= 341 {
 		p.cycle = 0

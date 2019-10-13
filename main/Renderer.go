@@ -9,11 +9,10 @@ type Sprite struct {
 	pixelMatrix [][]*color.RGBA
 }
 
-func CreateSprite(h, w int) *Sprite {
-
-	pixelMatrix := make([][]*color.RGBA, h)
+func CreateSprite(w, h int) *Sprite {
+	pixelMatrix := make([][]*color.RGBA, w)
 	for i := range pixelMatrix {
-		pixelMatrix[i] = make([]*color.RGBA, w)
+		pixelMatrix[i] = make([]*color.RGBA, h)
 		for k := range pixelMatrix[i] {
 			pixelMatrix[i][k] = nil
 		}
@@ -24,7 +23,9 @@ func CreateSprite(h, w int) *Sprite {
 }
 
 func (s *Sprite) SetPixel(x, y int, color *color.RGBA) {
-	xx := x % len(s.pixelMatrix)
-	yy := y % len(s.pixelMatrix[1])
-	s.pixelMatrix[xx][yy] = color
+	if y > -1 && x > -1 {
+		y = y % s.h
+		x = x % s.w
+		s.pixelMatrix[x][y] = color
+	}
 }

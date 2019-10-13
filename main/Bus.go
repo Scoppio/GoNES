@@ -8,7 +8,8 @@ import (
 
 var (
 	// ClockCount : Used for debug, counts total clocks so far
-	ClockCount = 0
+	ClockCount     = 0
+	OperationCount = 0
 )
 
 // Bus Databus and things connected to it
@@ -120,7 +121,7 @@ func (b *Bus) ExecutOperation() {
 
 func (b *Bus) Reset() {
 	b.cpu.Reset()
-
+	OperationCount = 0
 	ClockCount = 0
 }
 

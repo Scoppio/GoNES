@@ -29,7 +29,6 @@ const (
 var (
 	// OpCodesLookupTable : table with all the instructions of the 6502
 	OpCodesLookupTable []Instruction
-	OperationCount     = 0
 )
 
 // CPU6502 : Struct that represents the 6502 chip
@@ -645,12 +644,7 @@ func BEQ(c *CPU6502) byte {
 func BPL(c *CPU6502) byte {
 	if !c.StatusRegister(N) {
 		c.cycles++
-		if c.addressRel&0x80 == 0 {
-			c.addressAbs = c.pc - c.addressRel
-		} else {
-			c.addressAbs = c.pc + c.addressRel
-		}
-
+		c.addressAbs = c.pc + c.addressRel
 		if (c.addressAbs & 0xFF00) != (c.pc & 0xFF00) {
 			c.cycles++
 		}

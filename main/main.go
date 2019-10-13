@@ -35,6 +35,8 @@ var (
 	emulationRun = false
 	residualTime = 0.0
 	elapsedTime  = 0.0
+	YPOS         = 240
+	XPOS         = 0
 )
 
 func init() {
@@ -55,8 +57,9 @@ var imd *imdraw.IMDraw
 
 func run() {
 	cfg := pixelgl.WindowConfig{
-		Title:  "GoNES",
-		Bounds: pixel.R(0, 0, width, height),
+		Title:       "GoNES",
+		Bounds:      pixel.R(0, 0, width, height),
+		Undecorated: true,
 	}
 	win, err := pixelgl.NewWindow(cfg)
 	if err != nil {
@@ -65,15 +68,6 @@ func run() {
 
 	imd = imdraw.New(nil)
 	basicTxt = text.New(pixel.V(0, 0), atlas)
-	// last := time.Now()
-	t1 := time.Now()
-	t2 := t1.Add(time.Second * 341)
-
-	fmt.Println(t1)
-	fmt.Println(t2)
-
-	diff := t2.Sub(t1)
-	fmt.Println(diff)
 
 	lastUpdate := time.Now()
 	for !win.Closed() {
@@ -97,6 +91,9 @@ func run() {
 				for !Nes.cpu.Complete() {
 					Nes.Clock()
 				}
+				if Nes.ppu.Complete() {
+					Nes.ppu.frameComplete = false
+				}
 			}
 			if win.JustPressed(pixelgl.KeyF) {
 				// One full frame
@@ -119,6 +116,22 @@ func run() {
 				Nes.Clock()
 			}
 		}
+		if win.Pressed(pixelgl.KeyUp) {
+			// One microcode clock
+			YPOS++
+		}
+		if win.Pressed(pixelgl.KeyDown) {
+			// One microcode clock
+			YPOS--
+		}
+		if win.Pressed(pixelgl.KeyLeft) {
+			// One microcode clock
+			XPOS--
+		}
+		if win.Pressed(pixelgl.KeyRight) {
+			// One microcode clock
+			XPOS++
+		}
 
 		if win.JustPressed(pixelgl.KeySpace) {
 			// SPACE
@@ -126,8 +139,8 @@ func run() {
 		}
 		win.Clear(colornames.Darkblue)
 
-		drawCPU(516, 2)
-		drawCode(516, 72, 26)
+		drawCPU(516, 25)
+		drawCode(516, 92, 26)
 
 		// drawRAM(2, 12, 0x0000, 16, 16)
 		drawSprite(0, 0, Nes.ppu.GetScreen())
@@ -146,7 +159,7 @@ func run() {
 			frames = 0
 		default:
 		}
-		elapsedTime = lastUpdate.Sub(time.Now()).Seconds()
+		elapsedTime = -lastUpdate.Sub(time.Now()).Seconds()
 		lastUpdate = time.Now()
 	}
 }
@@ -158,7 +171,7 @@ func drawSprite(x, y float64, sprite *Sprite) {
 		for j = range sprite.pixelMatrix[i] {
 			c := sprite.pixelMatrix[i][j]
 			if c != nil {
-				drawPixel(x+float64(i), y+float64(j), c)
+				drawPixel(float64(XPOS)+x+float64(i), float64(YPOS)+y+float64(j), c)
 			}
 		}
 	}
@@ -210,6 +223,10 @@ func drawCPU(x, y float64) {
 	drawString(x, y+36, fmt.Sprintln("X : ", fmt.Sprintf("$%s   [%d]", Hex(uint32(c.x), 2), c.x)), colornames.White)
 	drawString(x, y+48, fmt.Sprintln("Y : ", fmt.Sprintf("$%s   [%d]", Hex(uint32(c.y), 2), c.y)), colornames.White)
 	drawString(x, y+60, fmt.Sprintln("Stack P: ", fmt.Sprintf("$%s", Hex(uint32(c.stkp), 4))), colornames.White)
+	drawString(x, y+72, fmt.Sprintln("X POS: ", XPOS), colornames.White)
+	drawString(x, y+84, fmt.Sprintln("Y POS: ", YPOS), colornames.White)
+	drawString(x, y+96, fmt.Sprintln("Clock Count: ", ClockCount), colornames.White)
+	drawString(x, y+108, fmt.Sprintln("Operation Count: ", OperationCount), colornames.White)
 	// drawString(x, y, fmt.Sprintln("Clock: ", c.cycles), colornames.White)
 	// drawString(x, y, fmt.Sprintln("GlobalClock: ", clock_count), colornames.White)
 	// drawString(x, y, fmt.Sprintln("ADD ABS: ", fmt.Sprintf("0x%X", c.address_abs)), colornames.White)
