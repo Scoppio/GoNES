@@ -31,7 +31,7 @@ func CreateBus(cpu *CPU6502, ppu *PPU2C02) *Bus {
 // inserted data must be in hexadecimal writen as a string
 // and they may have space after each 2 bytes
 // example : "A9 0F 8D 15 40 60" or "A90F8D154060"
-func (b *Bus) PreLoadMemory(offset rune, data string) {
+func (b *Bus) PreLoadMemory(offset Word, data string) {
 	nOffset := offset
 	for i := 0; i < len(data); i += 2 {
 		b.CPUWrite(nOffset, ByteToHex(data[i])<<4|ByteToHex(data[i+1]))
@@ -43,15 +43,15 @@ func (b *Bus) PreLoadMemory(offset rune, data string) {
 }
 
 // SetCodeEntry : Set the address that starts your program
-func (b *Bus) SetCodeEntry(address rune) {
+func (b *Bus) SetCodeEntry(address Word) {
 	b.CPUWrite(0xFFFC, byte(address))
 	b.CPUWrite(0xFFFD, byte(address>>8))
 }
 
-func (b *Bus) CPURead(address rune, readOnly bool) (byte, error) {
+func (b *Bus) CPURead(address Word, readOnly bool) (byte, error) {
 	var d byte = 0x00
 	var e error = nil
-	if data, ok := b.cart.CPURead(address); ok {
+	if data, ok := b.CartCPURead(address); ok {
 		d = data
 	} else if address >= 0x0000 && address <= 0x1FFF {
 		d = b.ram[address&0x07FF]
@@ -66,9 +66,23 @@ func (b *Bus) CPURead(address rune, readOnly bool) (byte, error) {
 	return d, e
 }
 
-func (b *Bus) CPUWrite(address rune, data byte) error {
+func (b *Bus) CartCPURead(address Word) (byte, bool) {
+	if b.cart != nil {
+		return b.cart.CPURead(address)
+	}
+	return 0, false
+}
+
+func (b *Bus) CartCPUWrite(address Word, data byte) bool {
+	if b.cart != nil {
+		return b.cart.CPUWrite(address, data)
+	}
+	return false
+}
+
+func (b *Bus) CPUWrite(address Word, data byte) error {
 	var e error = nil
-	if ok := b.cart.CPUWrite(address, data); ok {
+	if ok := b.CartCPUWrite(address, data); ok {
 		//
 	} else if address >= 0x0000 && address <= 0x1fff {
 		b.ram[address&0x07FF] = data
@@ -85,7 +99,11 @@ func (b *Bus) CPUWrite(address rune, data byte) error {
 
 // Clock : Bus clock implementation pulses the clock to all things attached to it
 func (b *Bus) Clock() {
-	b.cpu.Clock()
+	b.ppu.Clock()
+	if ClockCount%3 == 0 {
+		b.cpu.Clock()
+	}
+	ClockCount++
 }
 
 func (b *Bus) ExecutOperation() {
@@ -102,6 +120,7 @@ func (b *Bus) ExecutOperation() {
 
 func (b *Bus) Reset() {
 	b.cpu.Reset()
+
 	ClockCount = 0
 }
 

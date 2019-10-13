@@ -25,13 +25,16 @@ const (
 )
 
 var (
-	Nes      *Bus
-	cpu      *CPU6502
-	basicTxt *text.Text
-	mapAsm   map[rune]string
-	frames   = 0
-	second   = time.Tick(time.Second)
-	atlas    = text.NewAtlas(basicfont.Face7x13, text.ASCII, text.RangeTable(unicode.Latin))
+	Nes          *Bus
+	cpu          *CPU6502
+	basicTxt     *text.Text
+	mapAsm       map[Word]string
+	frames       = 0
+	second       = time.Tick(time.Second)
+	atlas        = text.NewAtlas(basicfont.Face7x13, text.ASCII, text.RangeTable(unicode.Latin))
+	emulationRun = false
+	residualTime = 0.0
+	elapsedTime  = 0.0
 )
 
 func init() {
@@ -63,28 +66,71 @@ func run() {
 	imd = imdraw.New(nil)
 	basicTxt = text.New(pixel.V(0, 0), atlas)
 	// last := time.Now()
+	t1 := time.Now()
+	t2 := t1.Add(time.Second * 341)
+
+	fmt.Println(t1)
+	fmt.Println(t2)
+
+	diff := t2.Sub(t1)
+	fmt.Println(diff)
+
+	lastUpdate := time.Now()
 	for !win.Closed() {
-		if win.JustPressed(pixelgl.KeyR) {
-			// Reset
-			cpu.Reset()
-			for !cpu.Complete() {
-				cpu.Clock()
+
+		if emulationRun {
+			if residualTime > 0.0 {
+				residualTime -= elapsedTime
+			} else {
+				residualTime += 1.0/60.0 - elapsedTime
+				Nes.Clock()
+				for !Nes.ppu.Complete() {
+					Nes.Clock()
+				}
+				Nes.ppu.frameComplete = false
+
 			}
-		}
-		if win.JustPressed(pixelgl.KeyC) {
-			// I
-			cpu.Clock()
-			for !cpu.Complete() {
-				cpu.Clock()
+		} else {
+			if win.JustPressed(pixelgl.KeyC) {
+				// One microcode clock
+				Nes.Clock()
+				for !Nes.cpu.Complete() {
+					Nes.Clock()
+				}
+			}
+			if win.JustPressed(pixelgl.KeyF) {
+				// One full frame
+				Nes.Clock()
+				for !Nes.ppu.Complete() {
+					Nes.Clock()
+				}
+
+				for !Nes.cpu.Complete() {
+					Nes.Clock()
+				}
+				Nes.ppu.frameComplete = false
 			}
 		}
 
+		if win.JustPressed(pixelgl.KeyR) {
+			// Reset
+			Nes.Reset()
+			for !Nes.cpu.Complete() {
+				Nes.Clock()
+			}
+		}
+
+		if win.JustPressed(pixelgl.KeySpace) {
+			// SPACE
+			emulationRun = !emulationRun
+		}
 		win.Clear(colornames.Darkblue)
 
 		drawCPU(516, 2)
 		drawCode(516, 72, 26)
 
-		drawRAM(2, 12, 0x0000, 16, 16)
+		// drawRAM(2, 12, 0x0000, 16, 16)
+		drawSprite(0, 0, Nes.ppu.GetScreen())
 
 		imd.Draw(win)
 		basicTxt.Draw(win, pixel.IM)
@@ -100,8 +146,28 @@ func run() {
 			frames = 0
 		default:
 		}
-
+		elapsedTime = lastUpdate.Sub(time.Now()).Seconds()
+		lastUpdate = time.Now()
 	}
+}
+
+func drawSprite(x, y float64, sprite *Sprite) {
+	i := 0
+	j := 0
+	for i = range sprite.pixelMatrix {
+		for j = range sprite.pixelMatrix[i] {
+			c := sprite.pixelMatrix[i][j]
+			if c != nil {
+				drawPixel(x+float64(i), y+float64(j), c)
+			}
+		}
+	}
+}
+
+func drawPixel(x, y float64, c *color.RGBA) {
+	imd.Color = c
+	imd.Push(pixel.V(x, y), pixel.V(x+1, y+1))
+	imd.Rectangle(0)
 }
 
 func drawPixels() {
@@ -150,7 +216,7 @@ func drawCPU(x, y float64) {
 	// drawString(x, y, fmt.Sprintln("ADD REL: ", fmt.Sprintf("0x%X", c.address_rel)), colornames.White)
 }
 
-func drawRAM(x, y float64, addr rune, rows, columns int) {
+func drawRAM(x, y float64, addr Word, rows, columns int) {
 	RAMX := x
 	RAMY := y
 	for row := 0; row < rows; row++ {

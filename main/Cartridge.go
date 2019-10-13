@@ -86,14 +86,14 @@ func LoadCartridge(filepath string) *Cartridge {
 	return cart
 }
 
-func (c *Cartridge) CPURead(address rune) (byte, bool) {
+func (c *Cartridge) CPURead(address Word) (byte, bool) {
 	if mappedAddress, ok := c.mapper.CPUMapRead(address); ok {
 		return c.PRGMemory[mappedAddress], true
 	}
 	return 0, false
 }
 
-func (c *Cartridge) CPUWrite(address rune, data byte) bool {
+func (c *Cartridge) CPUWrite(address Word, data byte) bool {
 	if mappedAddress, ok := c.mapper.CPUMapWrite(address); ok {
 		c.PRGMemory[mappedAddress] = data
 		return true
@@ -101,14 +101,14 @@ func (c *Cartridge) CPUWrite(address rune, data byte) bool {
 	return false
 }
 
-func (c *Cartridge) PPURead(address rune) (byte, bool) {
+func (c *Cartridge) PPURead(address Word) (byte, bool) {
 	if mappedAddress, ok := c.mapper.PPUMapRead(address); ok {
 		return c.CHAMemory[mappedAddress], true
 	}
 	return 0, false
 }
 
-func (c *Cartridge) PPUWrite(address rune, data byte) bool {
+func (c *Cartridge) PPUWrite(address Word, data byte) bool {
 	if mappedAddress, ok := c.mapper.PPUMapWrite(address); ok {
 		c.CHAMemory[mappedAddress] = data
 		return true

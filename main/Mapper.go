@@ -1,10 +1,10 @@
 package main
 
 type Mapper interface {
-	CPUMapRead(address rune) (uint32, bool)
-	CPUMapWrite(address rune) (uint32, bool)
-	PPUMapRead(address rune) (uint32, bool)
-	PPUMapWrite(address rune) (uint32, bool)
+	CPUMapRead(address Word) (uint32, bool)
+	CPUMapWrite(address Word) (uint32, bool)
+	PPUMapRead(address Word) (uint32, bool)
+	PPUMapWrite(address Word) (uint32, bool)
 }
 
 type Mapper000 struct {
@@ -12,7 +12,7 @@ type Mapper000 struct {
 	CHABanks byte
 }
 
-func (m *Mapper000) CPUMapRead(address rune) (uint32, bool) {
+func (m *Mapper000) CPUMapRead(address Word) (uint32, bool) {
 	if address >= 0x8000 && address <= 0xFFFF {
 		var mappedAddress uint32
 		if m.PGRBanks > 1 {
@@ -26,7 +26,7 @@ func (m *Mapper000) CPUMapRead(address rune) (uint32, bool) {
 	return 0, false
 }
 
-func (m *Mapper000) CPUMapWrite(address rune) (uint32, bool) {
+func (m *Mapper000) CPUMapWrite(address Word) (uint32, bool) {
 	if address >= 0x8000 && address <= 0xFFFF {
 		var mappedAddress uint32
 		if m.PGRBanks > 1 {
@@ -40,7 +40,7 @@ func (m *Mapper000) CPUMapWrite(address rune) (uint32, bool) {
 	return 0, false
 }
 
-func (m *Mapper000) PPUMapRead(address rune) (uint32, bool) {
+func (m *Mapper000) PPUMapRead(address Word) (uint32, bool) {
 	if address >= 0x0000 && address <= 0x1FFF {
 
 		return uint32(address), true
@@ -48,6 +48,6 @@ func (m *Mapper000) PPUMapRead(address rune) (uint32, bool) {
 	return 0, false
 }
 
-func (m *Mapper000) PPUMapWrite(address rune) (uint32, bool) {
+func (m *Mapper000) PPUMapWrite(address Word) (uint32, bool) {
 	return 0, false
 }
