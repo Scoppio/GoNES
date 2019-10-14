@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"image"
 	"image/color"
 	"math/rand"
 	"time"
@@ -17,11 +18,11 @@ import (
 )
 
 const (
-	height          = 480
-	width           = 680
-	rows            = 240
-	columns         = 256
-	size    float64 = 2 // Pixel size modifier
+	height  = 480
+	width   = 680
+	rows    = 240
+	columns = 256
+	scale   = 3.0
 )
 
 var (
@@ -66,11 +67,18 @@ func run() {
 		panic(err)
 	}
 
+	c := win.Bounds().Center()
+
 	imd = imdraw.New(nil)
 	basicTxt = text.New(pixel.V(0, 0), atlas)
 
 	lastUpdate := time.Now()
 	for !win.Closed() {
+		if win.JustPressed(pixelgl.KeyEscape) || win.JustPressed(pixelgl.KeyQ) {
+			return
+		}
+		win.Clear(colornames.Darkblue)
+		// win.Clear(color.Black)
 
 		if emulationRun {
 			if residualTime > 0.0 {
@@ -137,17 +145,15 @@ func run() {
 			// SPACE
 			emulationRun = !emulationRun
 		}
-		win.Clear(colornames.Darkblue)
 
 		drawCPU(516, 25)
 		drawCode(516, 92, 26)
 
 		// drawRAM(2, 12, 0x0000, 16, 16)
-		drawSprite(0, 0, Nes.ppu.GetScreen())
+		p := drawSprite(0, 0, Nes.ppu.GetScreen())
 
-		imd.Draw(win)
-		basicTxt.Draw(win, pixel.IM)
-		imd.Clear()
+		pixel.NewSprite(p, p.Bounds()).Draw(win, pixel.IM.Moved(c).Scaled(c, scale))
+		basicTxtDraw(win, pixel.IM.Moved(c).Scaled(c, scale))
 		basicTxt.Clear()
 
 		win.Update()
@@ -164,17 +170,20 @@ func run() {
 	}
 }
 
-func drawSprite(x, y float64, sprite *Sprite) {
-	i := 0
-	j := 0
-	for i = range sprite.pixelMatrix {
-		for j = range sprite.pixelMatrix[i] {
-			c := sprite.pixelMatrix[i][j]
-			if c != nil {
-				drawPixel(float64(XPOS)+x+float64(i), float64(YPOS)+y+float64(j), c)
-			}
-		}
-	}
+func drawSprite(x, y float64, sprite *Sprite) *image.RGBA {
+	// i := 0
+	// j := 0
+	// for i = range sprite.pixelMatrix {
+	// 	for j = range sprite.pixelMatrix[i] {
+	// 		c := sprite.pixelMatrix[i][j]
+	// 		if c != nil {
+	// 			drawPixel(float64(XPOS)+x+float64(i), float64(YPOS)+y+float64(j), c)
+	// 		}
+	// 	}
+	// }
+
+	return pixel.PictureDataFromImage(Frame(x, y, sprite))
+
 }
 
 func drawPixel(x, y float64, c *color.RGBA) {
