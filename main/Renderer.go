@@ -1,14 +1,20 @@
 package main
 
 import (
+	"bytes"
+	"image"
 	"image/color"
+	"image/draw"
+	"image/png"
 )
 
+// Sprite : sprite
 type Sprite struct {
 	x, y, h, w  int
 	pixelMatrix [][]*color.RGBA
 }
 
+// CreateSprite : create sprite
 func CreateSprite(w, h int) *Sprite {
 	pixelMatrix := make([][]*color.RGBA, w)
 	for i := range pixelMatrix {
@@ -22,6 +28,7 @@ func CreateSprite(w, h int) *Sprite {
 	return sprite
 }
 
+// SetPixel : SetPixel
 func (s *Sprite) SetPixel(x, y int, color *color.RGBA) {
 	if y > -1 && x > -1 {
 		y = y % s.h
@@ -30,8 +37,8 @@ func (s *Sprite) SetPixel(x, y int, color *color.RGBA) {
 	}
 }
 
-
-func (s *Sprite) GetPixel(x, y int) *color.RGBA, bool {
+// GetPixel : GetPixel
+func (s *Sprite) GetPixel(x, y int) (*color.RGBA, bool) {
 	if y > -1 && x > -1 {
 		y = y % s.h
 		x = x % s.w
@@ -40,7 +47,6 @@ func (s *Sprite) GetPixel(x, y int) *color.RGBA, bool {
 
 	return nil, false
 }
-
 
 func loadTextures() *image.RGBA {
 	p, err := png.Decode(bytes.NewReader(textureData))
@@ -57,11 +63,12 @@ func loadTextures() *image.RGBA {
 
 var textureData = []byte{137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13}
 
-func Frame(X1POS, Y1POS float64, sprite *Sprite) *image.RGBA {
+// Frame : frame
+func Frame(X1POS, Y1POS int, sprite *Sprite) *image.RGBA {
 	m := image.NewRGBA(image.Rect(X1POS, Y1POS, sprite.w, sprite.h))
 
-	for x := 0; x < width; x++ {
-		for y := 0; y < height; y++ {
+	for x := 0; x < sprite.w; x++ {
+		for y := 0; y < sprite.h; y++ {
 			if c, ok := sprite.GetPixel(x, y); ok {
 				m.Set(x, y, c)
 			}

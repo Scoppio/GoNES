@@ -3,9 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"image"
 	"image/color"
-	"math/rand"
 	"time"
 	"unicode"
 
@@ -150,10 +148,10 @@ func run() {
 		drawCode(516, 92, 26)
 
 		// drawRAM(2, 12, 0x0000, 16, 16)
-		p := drawSprite(0, 0, Nes.ppu.GetScreen())
+		p := pixel.PictureDataFromImage(Frame(0, 0, Nes.ppu.GetScreen()))
 
 		pixel.NewSprite(p, p.Bounds()).Draw(win, pixel.IM.Moved(c).Scaled(c, scale))
-		basicTxtDraw(win, pixel.IM.Moved(c).Scaled(c, scale))
+		basicTxt.Draw(win, pixel.IM.Moved(c).Scaled(c, scale))
 		basicTxt.Clear()
 
 		win.Update()
@@ -167,46 +165,6 @@ func run() {
 		}
 		elapsedTime = -lastUpdate.Sub(time.Now()).Seconds()
 		lastUpdate = time.Now()
-	}
-}
-
-func drawSprite(x, y float64, sprite *Sprite) *image.RGBA {
-	// i := 0
-	// j := 0
-	// for i = range sprite.pixelMatrix {
-	// 	for j = range sprite.pixelMatrix[i] {
-	// 		c := sprite.pixelMatrix[i][j]
-	// 		if c != nil {
-	// 			drawPixel(float64(XPOS)+x+float64(i), float64(YPOS)+y+float64(j), c)
-	// 		}
-	// 	}
-	// }
-
-	return pixel.PictureDataFromImage(Frame(x, y, sprite))
-
-}
-
-func drawPixel(x, y float64, c *color.RGBA) {
-	imd.Color = c
-	imd.Push(pixel.V(x, y), pixel.V(x+1, y+1))
-	imd.Rectangle(0)
-}
-
-func drawPixels() {
-	var x, y float64 = size, size * rows
-	i := 0
-	for y > 0 {
-		for x < columns*size {
-			if rand.Float32() > 0.5 {
-				imd.Color = colornames.Map[colornames.Names[int(x+y)%16]]
-				imd.Push(pixel.V(x, y), pixel.V(x+1, y+1))
-				imd.Rectangle(0)
-				i++
-			}
-			x += size
-		}
-		x = 0
-		y -= size
 	}
 }
 
