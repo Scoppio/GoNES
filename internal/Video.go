@@ -40,7 +40,7 @@ var (
 
 func init() {
 	Nes = CreateBus(CreateCPU(), CreatePPU())
-	Nes.InsertCartridge(LoadCartridge("../testroms/nestest.nes"))
+	Nes.InsertCartridge(LoadCartridge("../test/roms/nestest.nes"))
 	cpu = Nes.cpu
 	cpu.ConnectBus(Nes)
 	cpu.Reset()
