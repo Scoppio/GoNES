@@ -1093,7 +1093,6 @@ func TYA(c *CPU6502) byte {
 // human readable form. Its included as part of the emulator because it can take
 // advantage of many of the CPUs internal operations to do this.
 func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
-	var value byte = 0
 	var lo byte = 0
 	var hi byte = 0
 	var lineAddr Word = 0
@@ -1109,14 +1108,14 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 
 	// As the instruction is decoded, a std::string is assembled
 	// with the readable output
-	for addr <= uint32(stop) {
+	for uint32(addr) <= uint32(stop) {
 		lineAddr = Word(addr)
 		var sInst bytes.Buffer
 		var e error
 		var opcode byte
 		// Prefix line with instruction address
 		sInst.WriteString("$")
-		sInst.WriteString(Hex(addr, 4))
+		sInst.WriteString(Hex(uint32(addr), 4))
 		sInst.WriteString(": ")
 
 		// Read instruction, and get its readable name
@@ -1242,7 +1241,7 @@ func (c *CPU6502) Disassemble(start, stop Word) map[Word]string {
 			sInst.WriteString("$")
 			sInst.WriteString(Hex(uint32(val), 4))
 			sInst.WriteString(" [$")
-			sInst.WriteString(Hex(addr+uint32(value), 4))
+			sInst.WriteString(Hex(uint32(int32(addr)+int32(int8(val))), 4))
 			sInst.WriteString("] {REL}")
 		}
 

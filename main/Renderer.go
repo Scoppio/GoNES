@@ -6,6 +6,8 @@ import (
 	"image/color"
 	"image/draw"
 	"image/png"
+
+	"golang.org/x/image/colornames"
 )
 
 // Sprite : sprite
@@ -20,7 +22,7 @@ func CreateSprite(w, h int) *Sprite {
 	for i := range pixelMatrix {
 		pixelMatrix[i] = make([]*color.RGBA, h)
 		for k := range pixelMatrix[i] {
-			pixelMatrix[i][k] = nil
+			pixelMatrix[i][k] = &colornames.Black
 		}
 	}
 
@@ -70,6 +72,9 @@ func Frame(X1POS, Y1POS int, sprite *Sprite) *image.RGBA {
 	for x := 0; x < sprite.w; x++ {
 		for y := 0; y < sprite.h; y++ {
 			if c, ok := sprite.GetPixel(x, y); ok {
+				if c == nil {
+					c = &colornames.Black
+				}
 				m.Set(x, y, c)
 			}
 		}

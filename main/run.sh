@@ -1,1 +1,1 @@
-go run main.go Bus.go C6502.go P2C02.go Datatypes.go Utils.go Cartridge.go Mapper.go Renderer.go
+go run main.go Bus.go C6502.go P2C02.go DataTypes.go Utils.go Cartridge.go Mapper.go Renderer.go

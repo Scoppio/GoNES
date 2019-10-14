@@ -61,8 +61,7 @@ func (b *Bus) CPURead(address Word, readOnly bool) (byte, error) {
 	} else if address == 0xFFFC || address == 0xFFFD {
 		d = b.ram[address&0x07FF]
 	} else {
-		e = errors.New(fmt.Sprintln("tried to access index out of range", Hex(uint32(address), 4)))
-		fmt.Print(string(debug.Stack()))
+		// there simply isnt anything to get, so we just return zeroes
 	}
 	return d, e
 }

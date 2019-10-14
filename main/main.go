@@ -20,7 +20,7 @@ const (
 	width   = 680
 	rows    = 240
 	columns = 256
-	scale   = 3.0
+	scale   = 2.0
 )
 
 var (
@@ -47,7 +47,8 @@ func init() {
 }
 
 func main() {
-	mapAsm = cpu.Disassemble(0x0000, 0x07FF)
+	mapAsm = cpu.Disassemble(0x0000, 0xFFFF)
+
 	Nes.Reset()
 	pixelgl.Run(run)
 }
@@ -58,14 +59,14 @@ func run() {
 	cfg := pixelgl.WindowConfig{
 		Title:       "GoNES",
 		Bounds:      pixel.R(0, 0, width, height),
-		Undecorated: true,
+		Undecorated: false,
 	}
 	win, err := pixelgl.NewWindow(cfg)
 	if err != nil {
 		panic(err)
 	}
 
-	c := win.Bounds().Center()
+	// c := win.Bounds().Center()
 
 	imd = imdraw.New(nil)
 	basicTxt = text.New(pixel.V(0, 0), atlas)
@@ -144,14 +145,14 @@ func run() {
 			emulationRun = !emulationRun
 		}
 
-		drawCPU(516, 25)
-		drawCode(516, 92, 26)
+		drawCPU(516, 15)
+		drawCode(516, 142, 26)
 
 		// drawRAM(2, 12, 0x0000, 16, 16)
 		p := pixel.PictureDataFromImage(Frame(0, 0, Nes.ppu.GetScreen()))
 
-		pixel.NewSprite(p, p.Bounds()).Draw(win, pixel.IM.Moved(c).Scaled(c, scale))
-		basicTxt.Draw(win, pixel.IM.Moved(c).Scaled(c, scale))
+		pixel.NewSprite(p, p.Bounds()).Draw(win, pixel.IM.Moved(pixel.V(256, 240)).Scaled(pixel.V(256, 240), scale))
+		basicTxt.Draw(win, pixel.IM) // .Moved(c).Scaled(c, scale))
 		basicTxt.Clear()
 
 		win.Update()
@@ -176,15 +177,15 @@ func drawCPU(x, y float64) {
 		}
 		return colornames.Red
 	}
-	drawString(x, y, "CPU State", colornames.White)
-	drawString(x+15+64, y, "N", redGreen(c.StatusRegister(N)))
-	drawString(x+15+80, y, "V", redGreen(c.StatusRegister(V)))
-	drawString(x+15+96, y, "U", redGreen(c.StatusRegister(U)))
-	drawString(x+15+112, y, "B", redGreen(c.StatusRegister(B)))
-	drawString(x+15+128, y, "D", redGreen(c.StatusRegister(D)))
-	drawString(x+15+144, y, "I", redGreen(c.StatusRegister(I)))
-	drawString(x+15+160, y, "Z", redGreen(c.StatusRegister(Z)))
-	drawString(x+15+178, y, "C", redGreen(c.StatusRegister(C)))
+	drawString(x, y, "CPU", colornames.White)
+	drawString(x-30+64, y, "N", redGreen(c.StatusRegister(N)))
+	drawString(x-30+80, y, "V", redGreen(c.StatusRegister(V)))
+	drawString(x-30+96, y, "U", redGreen(c.StatusRegister(U)))
+	drawString(x-30+112, y, "B", redGreen(c.StatusRegister(B)))
+	drawString(x-30+128, y, "D", redGreen(c.StatusRegister(D)))
+	drawString(x-30+144, y, "I", redGreen(c.StatusRegister(I)))
+	drawString(x-30+160, y, "Z", redGreen(c.StatusRegister(Z)))
+	drawString(x-30+178, y, "C", redGreen(c.StatusRegister(C)))
 	drawString(x, y+12, fmt.Sprintln("PC: ", fmt.Sprintf("$%s [%d]", Hex(uint32(c.pc), 4), c.pc)), colornames.White)
 	drawString(x, y+24, fmt.Sprintln("A : ", fmt.Sprintf("$%s   [%d]", Hex(uint32(c.a), 2), c.a)), colornames.White)
 	drawString(x, y+36, fmt.Sprintln("X : ", fmt.Sprintf("$%s   [%d]", Hex(uint32(c.x), 2), c.x)), colornames.White)
