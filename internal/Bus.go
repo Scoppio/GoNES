@@ -8,7 +8,8 @@ import (
 
 var (
 	// ClockCount : Used for debug, counts total clocks so far
-	ClockCount     = 0
+	ClockCount = 0
+	// OperationCount : Number of operations executed
 	OperationCount = 0
 )
 

@@ -128,6 +128,7 @@ func CreatePPU() *PPU2C02 {
 		0}
 }
 
+// PPURead : PPURead
 func (p *PPU2C02) PPURead(address Word, readOnly bool) (byte, error) {
 	var data byte = 0
 	address &= 0x3FFF
@@ -139,6 +140,7 @@ func (p *PPU2C02) PPURead(address Word, readOnly bool) (byte, error) {
 	return data, nil
 }
 
+// PPUWrite : PPUWrite
 func (p *PPU2C02) PPUWrite(address Word, data byte) error {
 	address &= 0x3FFF
 
@@ -199,14 +201,8 @@ func (p *PPU2C02) CPUWrite(address Word, data byte) error {
 
 // Clock : Bus clock implementation pulses the clock to all things attached to it
 func (p *PPU2C02) Clock() {
-
-	c := byte(0x30)
-	if rand.Int()%2 == 0 {
-		c = byte(0x3F)
-	}
-
+	c := byte(rand.Intn(len(p.paletteScreen)))
 	p.GetScreen().SetPixel(int(p.cycle)-1, int(p.scanLine), p.paletteScreen[c])
-
 	p.cycle++
 	if p.cycle >= 341 {
 		p.cycle = 0
@@ -218,6 +214,7 @@ func (p *PPU2C02) Clock() {
 	}
 }
 
+// InsertCartridge : sets the pointer to the cartridge in the PPU
 func (p *PPU2C02) InsertCartridge(c *Cartridge) {
 	p.cart = c
 }
