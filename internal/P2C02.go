@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"image/color"
 	"math/rand"
 )
@@ -11,6 +10,7 @@ type PPU2C02 struct {
 	cart               *Cartridge
 	nameTable          [2][1024]byte
 	paletteTable       [32]byte
+	patternTable       [2][4096]byte
 	paletteScreen      [64]*color.RGBA
 	spriteScreen       *Sprite    // Sprite(256, 240)
 	spriteNameTable    [2]*Sprite // Sprite (128, 128), Sprite(128, 128)
@@ -29,10 +29,37 @@ func (p *PPU2C02) GetScreen() *Sprite {
 }
 
 func (p *PPU2C02) GetNameTable(i int) *Sprite {
+
 	return p.spriteNameTable[i]
 }
 
-func (p *PPU2C02) GetPatternTable(i byte) *Sprite {
+func (p *PPU2C02) GetColorFromPaletteRam(palette, pixelValue byte) *color.RGBA {
+	idx, _ := p.PPURead(0x3F00+Word(palette<<2+pixelValue), true)
+	return p.paletteScreen[idx]
+}
+
+func (p *PPU2C02) GetPatternTable(i, palette byte) *Sprite {
+
+	for x := 0; x < p.spritePatternTable[i].w; x++ {
+		for y := 0; y < p.spritePatternTable[i].h; y++ {
+			offset := y*256 + x*16
+			for row := 0; row < 8; row++ {
+				tileLSB, _ := p.PPURead(Word(int(i)*0x1000+offset+row+0), true)
+				tileMSB, _ := p.PPURead(Word(int(i)*0x1000+offset+row+8), true)
+				for col := 0; col < 8; col++ {
+					pixel := (tileMSB & 0x01) + (tileLSB & 0x01)
+					tileLSB = tileLSB >> 1
+					tileMSB = tileMSB >> 1
+
+					p.spritePatternTable[i].SetPixel(x*8+(7-col),
+						y*8+row,
+						p.GetColorFromPaletteRam(palette, pixel))
+
+				}
+			}
+		}
+	}
+
 	return p.spritePatternTable[i]
 }
 
@@ -47,6 +74,7 @@ func CreatePPU() *PPU2C02 {
 		nil,             // cart
 		[2][1024]byte{}, // nameTable
 		[32]byte{},      //paletteTable
+		[2][4096]byte{}, //patternTable
 		[0x40]*color.RGBA{
 			&color.RGBA{84, 84, 84, 255},
 			&color.RGBA{0, 30, 116, 255},
@@ -121,8 +149,8 @@ func CreatePPU() *PPU2C02 {
 			CreateSprite(256, 240),
 			CreateSprite(256, 240)},
 		[2]*Sprite{
-			CreateSprite(256, 240),
-			CreateSprite(256, 240)},
+			CreateSprite(128, 128),
+			CreateSprite(128, 128)},
 		false,
 		0,
 		0}
@@ -133,8 +161,24 @@ func (p *PPU2C02) PPURead(address Word, readOnly bool) (byte, error) {
 	var data byte = 0
 	address &= 0x3FFF
 
-	if mappedAddress, ok := p.cart.CPURead(address); ok {
-		fmt.Println(mappedAddress)
+	if d, ok := p.cart.PPURead(address); ok {
+		data = d
+	} else if address >= 0x0000 && address <= 0x1FFF {
+		data = p.patternTable[(address*0x1000)>>12][address&0x0FFF]
+	} else if address >= 0x2000 && address <= 0x3EFF {
+
+	} else if address >= 0x3F00 && address <= 0x3FFF {
+		address = address & 0x001F
+		if address == 0x0010 {
+			address = 0x0000
+		} else if address == 0x0014 {
+			address = 0x0004
+		} else if address == 0x0018 {
+			address = 0x0008
+		} else if address == 0x001C {
+			address = 0x000C
+		}
+		data = p.paletteTable[address]
 	}
 
 	return data, nil
@@ -146,8 +190,23 @@ func (p *PPU2C02) PPUWrite(address Word, data byte) error {
 
 	if p.cart.CPUWrite(address, data) {
 
-	}
+	} else if address >= 0x0000 && address <= 0x1FFF {
+		p.patternTable[(address*0x1000)>>12][address&0x0FFF] = data
+	} else if address >= 0x2000 && address <= 0x3EFF {
 
+	} else if address >= 0x3F00 && address <= 0x3FFF {
+		address = address & 0x001F
+		if address == 0x0010 {
+			address = 0x0000
+		} else if address == 0x0014 {
+			address = 0x0004
+		} else if address == 0x0018 {
+			address = 0x0008
+		} else if address == 0x001C {
+			address = 0x000C
+		}
+		p.paletteTable[address] = data
+	}
 	return nil
 }
 
@@ -201,6 +260,7 @@ func (p *PPU2C02) CPUWrite(address Word, data byte) error {
 
 // Clock : Bus clock implementation pulses the clock to all things attached to it
 func (p *PPU2C02) Clock() {
+	// c := byte(p.bus.cpu.opcode) % byte(len(p.paletteScreen))
 	c := byte(rand.Intn(len(p.paletteScreen)))
 	p.GetScreen().SetPixel(int(p.cycle)-1, int(p.scanLine), p.paletteScreen[c])
 	p.cycle++

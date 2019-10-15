@@ -66,8 +66,8 @@ func loadTextures() *image.RGBA {
 var textureData = []byte{137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13}
 
 // Frame : frame
-func Frame(X1POS, Y1POS int, sprite *Sprite) *image.RGBA {
-	m := image.NewRGBA(image.Rect(X1POS, Y1POS, sprite.w, sprite.h))
+func Frame(sprite *Sprite) *image.RGBA {
+	m := image.NewRGBA(image.Rect(0, 0, sprite.w, sprite.h))
 
 	for x := 0; x < sprite.w; x++ {
 		for y := 0; y < sprite.h; y++ {
