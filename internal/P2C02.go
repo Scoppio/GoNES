@@ -5,6 +5,21 @@ import (
 	"math/rand"
 )
 
+type controlRegister struct {
+}
+
+type maskRegister struct {
+}
+
+type scrollRegister struct {
+}
+
+type addressRegister struct {
+}
+
+type dataRegister struct {
+}
+
 type PPU2C02 struct {
 	bus                *Bus
 	cart               *Cartridge
