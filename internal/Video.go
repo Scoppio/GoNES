@@ -133,6 +133,7 @@ func run() {
 
 		// drawRAM(2, 12, 0x0000, 16, 16)
 
+		// draw palette selected
 		drawRect(float64(int(516)+int(selectedPalette)*(swatchSize*5)-1), 132, swatchSize*4+2, swatchSize+2, &colornames.White)
 
 		for p := 0; p < 8; p++ {

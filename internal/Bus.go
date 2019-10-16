@@ -1,11 +1,5 @@
 package main
 
-import (
-	"errors"
-	"fmt"
-	"runtime/debug"
-)
-
 var (
 	// ClockCount : Used for debug, counts total clocks so far
 	ClockCount = 0
@@ -91,9 +85,11 @@ func (b *Bus) CPUWrite(address Word, data byte) error {
 		e = b.ppu.CPUWrite(address&0x0007, data)
 	} else if address == 0xFFFC || address == 0xFFFD {
 		b.ram[address&0x07FF] = data
+	} else if address >= 0x4016 && address <= 0x4017 {
+		// controller_state[addr & 0x0001] = controller[addr & 0x0001];
 	} else {
-		e = errors.New(fmt.Sprintln("tried to access index out of range", Hex(uint32(address), 4)))
-		fmt.Print(string(debug.Stack()))
+		// e = errors.New(fmt.Sprintln("tried to access index out of range", Hex(uint32(address), 4)))
+		// fmt.Print(string(debug.Stack()))
 	}
 	return e
 }

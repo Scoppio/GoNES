@@ -39,6 +39,39 @@ const (
 )
 
 var (
+	DEFAULT_COLORS_2C02 [64]*color.RGBA
+)
+
+type PPU2C02 struct {
+	bus                *Bus
+	cart               *Cartridge
+	nameTable          [2][1024]byte
+	paletteTable       [32]byte
+	patternTable       [2][4096]byte
+	paletteScreen      [64]*color.RGBA
+	spriteScreen       *Sprite    // Sprite(256, 240)
+	spriteNameTable    [2]*Sprite // Sprite (128, 128), Sprite(128, 128)
+	spritePatternTable [2]*Sprite // Sprite(256, 240), Sprite(256, 240)
+	frameComplete      bool
+	scanLine           int16
+	cycle              int16
+
+	// Registers
+	controlRegister byte
+	maskRegister    byte
+	statusRegister  byte
+	// --
+	// --
+	scrollRegister  byte
+	addressRegister Word // 14 bits
+	dataRegister    byte
+
+	addressLatch  byte
+	ppuDataBuffer byte
+	ppuAddress    Word
+}
+
+func init() {
 	DEFAULT_COLORS_2C02 = [0x40]*color.RGBA{
 		&color.RGBA{84, 84, 84, 255},
 		&color.RGBA{0, 30, 116, 255},
@@ -108,35 +141,6 @@ var (
 		&color.RGBA{0, 0, 0, 255},
 		&color.RGBA{0, 0, 0, 255},
 	}
-)
-
-type PPU2C02 struct {
-	bus                *Bus
-	cart               *Cartridge
-	nameTable          [2][1024]byte
-	paletteTable       [32]byte
-	patternTable       [2][4096]byte
-	paletteScreen      [64]*color.RGBA
-	spriteScreen       *Sprite    // Sprite(256, 240)
-	spriteNameTable    [2]*Sprite // Sprite (128, 128), Sprite(128, 128)
-	spritePatternTable [2]*Sprite // Sprite(256, 240), Sprite(256, 240)
-	frameComplete      bool
-	scanLine           int16
-	cycle              int16
-
-	// Registers
-	controlRegister byte
-	maskRegister    byte
-	statusRegister  byte
-	// --
-	// --
-	scrollRegister  byte
-	addressRegister Word // 14 bits
-	dataRegister    byte
-
-	addressLatch  byte
-	ppuDataBuffer byte
-	ppuAddress    Word
 }
 
 func (p *PPU2C02) GetFlag(flag Flag, at Register) bool {
@@ -180,37 +184,37 @@ func (p *PPU2C02) defineFlag(val bool, flag Flag, at Register) {
 	switch at {
 	case CONTROL_REGISTER:
 		if val {
-			p.controlRegister |= byte(1 << uint(at))
+			p.controlRegister |= byte(1 << uint(flag))
 		} else {
-			p.controlRegister &= ^byte(1 << uint(at))
+			p.controlRegister &= ^byte(1 << uint(flag))
 		}
 		break
 	case MASK_REGISTER:
 		if val {
-			p.maskRegister |= byte(1 << uint(at))
+			p.maskRegister |= byte(1 << uint(flag))
 		} else {
-			p.maskRegister &= ^byte(1 << uint(at))
+			p.maskRegister &= ^byte(1 << uint(flag))
 		}
 		break
 	case STATUS_REGISTER:
 		if val {
-			p.statusRegister |= byte(1 << uint(at))
+			p.statusRegister |= byte(1 << uint(flag))
 		} else {
-			p.statusRegister &= ^byte(1 << uint(at))
+			p.statusRegister &= ^byte(1 << uint(flag))
 		}
 		break
 	case SCROLL_REGISTER:
 		if val {
-			p.scrollRegister |= byte(1 << uint(at))
+			p.scrollRegister |= byte(1 << uint(flag))
 		} else {
-			p.scrollRegister &= ^byte(1 << uint(at))
+			p.scrollRegister &= ^byte(1 << uint(flag))
 		}
 		break
 	case DATA_REGISTER:
 		if val {
-			p.dataRegister |= byte(1 << uint(at))
+			p.dataRegister |= byte(1 << uint(flag))
 		} else {
-			p.dataRegister &= ^byte(1 << uint(at))
+			p.dataRegister &= ^byte(1 << uint(flag))
 		}
 		break
 	case ADDRESS_REGISTER:
@@ -231,30 +235,36 @@ func (p *PPU2C02) GetScreen() *Sprite {
 }
 
 func (p *PPU2C02) GetNameTable(i int) *Sprite {
-
 	return p.spriteNameTable[i]
 }
 
 func (p *PPU2C02) GetColorFromPaletteRam(palette, pixelValue byte) *color.RGBA {
-	idx, _ := p.PPURead(0x3F00+Word(palette<<2+pixelValue), true)
-	return p.paletteScreen[idx]
+	idx, _ := p.PPURead(0x3F00+Word(palette)<<2+Word(pixelValue), false)
+	idx &= 0x3F
+	c := p.paletteScreen[idx]
+	// if pixelValue == byte(2) {
+	// 	c = p.paletteScreen[3]
+	// }
+	return c
 }
 
 func (p *PPU2C02) GetPatternTable(i, palette byte) *Sprite {
-
-	for x := 0; x < p.spritePatternTable[i].w; x++ {
-		for y := 0; y < p.spritePatternTable[i].h; y++ {
-			offset := y*256 + x*16
-			for row := 0; row < 8; row++ {
-				tileLSB, _ := p.PPURead(Word(int(i)*0x1000+offset+row+0), true)
-				tileMSB, _ := p.PPURead(Word(int(i)*0x1000+offset+row+8), true)
-				for col := 0; col < 8; col++ {
+	var tileY, tileX, row, col, offset int
+	for tileY = 0; tileY < 16; tileY++ {
+		for tileX = 0; tileX < 16; tileX++ {
+			offset = tileY*256 + tileX*16
+			for row = 0; row < 8; row++ {
+				pos := Word(i)*Word(0x1000) + Word(offset+row)
+				tileLSB, _ := p.PPURead(pos+0, true)
+				tileMSB, _ := p.PPURead(pos+8, true)
+				for col = 0; col < 8; col++ {
 					pixel := (tileMSB & 0x01) + (tileLSB & 0x01)
 					tileLSB = tileLSB >> 1
 					tileMSB = tileMSB >> 1
 
-					p.spritePatternTable[i].SetPixel(x*8+(7-col),
-						y*8+row,
+					p.spritePatternTable[i].SetPixel(
+						tileX*8+(7-col),
+						tileY*8+row,
 						p.GetColorFromPaletteRam(palette, pixel))
 
 				}
@@ -300,7 +310,7 @@ func (p *PPU2C02) PPURead(address Word, readOnly bool) (byte, error) {
 	if d, ok := p.cart.PPURead(address); ok {
 		data = d
 	} else if address >= 0x0000 && address <= 0x1FFF {
-		data = p.patternTable[(address*0x1000)>>12][address&0x0FFF]
+		data = p.patternTable[(address&0x1000)>>12][address&0x0FFF]
 	} else if address >= 0x2000 && address <= 0x3EFF {
 
 	} else if address >= 0x3F00 && address <= 0x3FFF {
@@ -314,7 +324,11 @@ func (p *PPU2C02) PPURead(address Word, readOnly bool) (byte, error) {
 		} else if address == 0x001C {
 			address = 0x000C
 		}
-		data = p.paletteTable[address]
+		if p.GetFlag(GRAY_SCALE, MASK_REGISTER) {
+			data = p.paletteTable[address] & 0x30
+		} else {
+			data = p.paletteTable[address] & 0x3F
+		}
 	}
 
 	return data, nil
@@ -327,11 +341,11 @@ func (p *PPU2C02) PPUWrite(address Word, data byte) error {
 	if p.cart.CPUWrite(address, data) {
 
 	} else if address >= 0x0000 && address <= 0x1FFF {
-		p.patternTable[(address*0x1000)>>12][address&0x0FFF] = data
+		p.patternTable[(address&0x1000)>>12][address&0x0FFF] = data
 	} else if address >= 0x2000 && address <= 0x3EFF {
 
 	} else if address >= 0x3F00 && address <= 0x3FFF {
-		address = address & 0x001F
+		address &= 0x001F
 		if address == 0x0010 {
 			address = 0x0000
 		} else if address == 0x0014 {
@@ -355,6 +369,7 @@ func (p *PPU2C02) CPURead(address Word, readOnly bool) (byte, error) {
 	case MASK_REGISTER:
 		break
 	case STATUS_REGISTER:
+		p.SetFlag(VERTICAL_BLANK, STATUS_REGISTER)
 		data = p.statusRegister&0xE0 | p.ppuDataBuffer&0x1F
 		p.ClearFlag(VERTICAL_BLANK, STATUS_REGISTER)
 		p.addressLatch = 0
@@ -373,6 +388,7 @@ func (p *PPU2C02) CPURead(address Word, readOnly bool) (byte, error) {
 		if p.ppuAddress > 0x3F00 {
 			data = p.ppuDataBuffer
 		}
+		p.ppuAddress++
 		break
 	}
 	return data, nil
@@ -408,6 +424,7 @@ func (p *PPU2C02) CPUWrite(address Word, data byte) error {
 		break
 	case DATA_REGISTER:
 		p.PPUWrite(p.ppuAddress, data)
+		p.ppuAddress++
 		break
 	}
 
@@ -423,13 +440,9 @@ func (p *PPU2C02) Clock() {
 	if p.cycle >= 341 {
 		p.cycle = 0
 		p.scanLine++
-		if p.scanLine >= 240 {
-			p.SetFlag(VERTICAL_BLANK, STATUS_REGISTER)
-		}
 		if p.scanLine >= 261 {
 			p.scanLine = -1
 			p.frameComplete = true
-			p.ClearFlag(VERTICAL_BLANK, STATUS_REGISTER)
 		}
 	}
 }
