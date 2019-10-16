@@ -8,6 +8,9 @@ import (
 // Flag : int that defines which register flag is active
 type Flag int
 
+// Register : int that defines which register is accessed
+type Register int
+
 // Word : uint 16
 type Word uint16
 

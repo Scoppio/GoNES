@@ -5,20 +5,110 @@ import (
 	"math/rand"
 )
 
-type controlRegister struct {
-}
+const (
+	CONTROL_REGISTER = 0
+	MASK_REGISTER    = 1
+	STATUS_REGISTER  = 2
+	OAM_ADDRESS      = 3
+	OAM_DATA         = 4
+	SCROLL_REGISTER  = 5
+	ADDRESS_REGISTER = 6
+	DATA_REGISTER    = 7
 
-type maskRegister struct {
-}
+	VERTICAL_BLANK  = 7
+	SPRITE_ZERO_HIT = 6
+	SPRITE_OVERFLOW = 5
 
-type scrollRegister struct {
-}
+	GRAY_SCALE             = 0
+	RENDER_BACKGROUND_LEFT = 1
+	RENDER_SPRITES_LEFT    = 2
+	RENDER_BACKGROUND      = 3
+	RENDER_SPRITES         = 4
+	ENHANCE_RED            = 5
+	ENHANCE_GREEN          = 6
+	ENHANCE_BLUE           = 7
 
-type addressRegister struct {
-}
+	NAMETABLE_X       = 0
+	NAMETABLE_Y       = 1
+	INCREMENT_MODE    = 2
+	PATTERN_SPRITE    = 3
+	PATTERN_BACKGROUN = 4
+	SPRITE_SIZE       = 5
+	SLAVE_MODE        = 6
+	ENABLE_NMI        = 7
+)
 
-type dataRegister struct {
-}
+var (
+	DEFAULT_COLORS_2C02 = [0x40]*color.RGBA{
+		&color.RGBA{84, 84, 84, 255},
+		&color.RGBA{0, 30, 116, 255},
+		&color.RGBA{8, 16, 144, 255},
+		&color.RGBA{48, 0, 136, 255},
+		&color.RGBA{68, 0, 100, 255},
+		&color.RGBA{92, 0, 48, 255},
+		&color.RGBA{84, 4, 0, 255},
+		&color.RGBA{60, 24, 0, 255},
+		&color.RGBA{32, 42, 0, 255},
+		&color.RGBA{8, 58, 0, 255},
+		&color.RGBA{0, 64, 0, 255},
+		&color.RGBA{0, 60, 0, 255},
+		&color.RGBA{0, 50, 60, 255},
+		&color.RGBA{0, 0, 0, 255},
+		&color.RGBA{0, 0, 0, 255},
+		&color.RGBA{0, 0, 0, 255},
+
+		&color.RGBA{152, 150, 152, 255},
+		&color.RGBA{8, 76, 196, 255},
+		&color.RGBA{48, 50, 236, 255},
+		&color.RGBA{92, 30, 228, 255},
+		&color.RGBA{136, 20, 176, 255},
+		&color.RGBA{160, 20, 100, 255},
+		&color.RGBA{152, 34, 32, 255},
+		&color.RGBA{120, 60, 0, 255},
+		&color.RGBA{84, 90, 0, 255},
+		&color.RGBA{40, 114, 0, 255},
+		&color.RGBA{8, 124, 0, 255},
+		&color.RGBA{0, 118, 40, 255},
+		&color.RGBA{0, 102, 120, 255},
+		&color.RGBA{0, 0, 0, 255},
+		&color.RGBA{0, 0, 0, 255},
+		&color.RGBA{0, 0, 0, 255},
+
+		&color.RGBA{236, 238, 236, 255},
+		&color.RGBA{76, 154, 236, 255},
+		&color.RGBA{120, 124, 236, 255},
+		&color.RGBA{176, 98, 236, 255},
+		&color.RGBA{228, 84, 236, 255},
+		&color.RGBA{236, 88, 180, 255},
+		&color.RGBA{236, 106, 100, 255},
+		&color.RGBA{212, 136, 32, 255},
+		&color.RGBA{160, 170, 0, 255},
+		&color.RGBA{116, 196, 0, 255},
+		&color.RGBA{76, 208, 32, 255},
+		&color.RGBA{56, 204, 108, 255},
+		&color.RGBA{56, 180, 204, 255},
+		&color.RGBA{60, 60, 60, 255},
+		&color.RGBA{0, 0, 0, 255},
+		&color.RGBA{0, 0, 0, 255},
+
+		&color.RGBA{236, 238, 236, 255},
+		&color.RGBA{168, 204, 236, 255},
+		&color.RGBA{188, 188, 236, 255},
+		&color.RGBA{212, 178, 236, 255},
+		&color.RGBA{236, 174, 236, 255},
+		&color.RGBA{236, 174, 212, 255},
+		&color.RGBA{236, 180, 176, 255},
+		&color.RGBA{228, 196, 144, 255},
+		&color.RGBA{204, 210, 120, 255},
+		&color.RGBA{180, 222, 120, 255},
+		&color.RGBA{168, 226, 144, 255},
+		&color.RGBA{152, 226, 180, 255},
+		&color.RGBA{160, 214, 228, 255},
+		&color.RGBA{160, 162, 160, 255},
+		&color.RGBA{0, 0, 0, 255},
+		&color.RGBA{0, 0, 0, 255},
+	}
+)
 
 type PPU2C02 struct {
 	bus                *Bus
@@ -33,6 +123,103 @@ type PPU2C02 struct {
 	frameComplete      bool
 	scanLine           int16
 	cycle              int16
+
+	// Registers
+	controlRegister byte
+	maskRegister    byte
+	statusRegister  byte
+	// --
+	// --
+	scrollRegister  byte
+	addressRegister Word // 14 bits
+	dataRegister    byte
+
+	addressLatch  byte
+	ppuDataBuffer byte
+	ppuAddress    Word
+}
+
+func (p *PPU2C02) GetFlag(flag Flag, at Register) bool {
+	var shortRegister byte
+	var longRegister Word
+
+	switch at {
+	case CONTROL_REGISTER:
+		shortRegister = p.controlRegister
+		break
+	case MASK_REGISTER:
+		shortRegister = p.maskRegister
+		break
+	case STATUS_REGISTER:
+		shortRegister = p.statusRegister
+		break
+	case SCROLL_REGISTER:
+		shortRegister = p.scrollRegister
+		break
+	case DATA_REGISTER:
+		shortRegister = p.dataRegister
+		break
+	case ADDRESS_REGISTER:
+		longRegister = p.addressRegister
+		return (longRegister >> flag & 0x0001) == 0
+	}
+
+	return (shortRegister >> flag & 0x01) == 0
+}
+
+func (p *PPU2C02) SetFlag(flag Flag, at Register) {
+	p.defineFlag(true, flag, at)
+}
+
+func (p *PPU2C02) ClearFlag(flag Flag, at Register) {
+	p.defineFlag(false, flag, at)
+}
+
+func (p *PPU2C02) defineFlag(val bool, flag Flag, at Register) {
+
+	switch at {
+	case CONTROL_REGISTER:
+		if val {
+			p.controlRegister |= byte(1 << uint(at))
+		} else {
+			p.controlRegister &= ^byte(1 << uint(at))
+		}
+		break
+	case MASK_REGISTER:
+		if val {
+			p.maskRegister |= byte(1 << uint(at))
+		} else {
+			p.maskRegister &= ^byte(1 << uint(at))
+		}
+		break
+	case STATUS_REGISTER:
+		if val {
+			p.statusRegister |= byte(1 << uint(at))
+		} else {
+			p.statusRegister &= ^byte(1 << uint(at))
+		}
+		break
+	case SCROLL_REGISTER:
+		if val {
+			p.scrollRegister |= byte(1 << uint(at))
+		} else {
+			p.scrollRegister &= ^byte(1 << uint(at))
+		}
+		break
+	case DATA_REGISTER:
+		if val {
+			p.dataRegister |= byte(1 << uint(at))
+		} else {
+			p.dataRegister &= ^byte(1 << uint(at))
+		}
+		break
+	case ADDRESS_REGISTER:
+		if val {
+			p.addressRegister |= Word(1 << uint(flag))
+		} else {
+			p.addressRegister &= ^Word(1 << uint(flag))
+		}
+	}
 }
 
 func (p *PPU2C02) Complete() bool {
@@ -90,75 +277,7 @@ func CreatePPU() *PPU2C02 {
 		[2][1024]byte{}, // nameTable
 		[32]byte{},      //paletteTable
 		[2][4096]byte{}, //patternTable
-		[0x40]*color.RGBA{
-			&color.RGBA{84, 84, 84, 255},
-			&color.RGBA{0, 30, 116, 255},
-			&color.RGBA{8, 16, 144, 255},
-			&color.RGBA{48, 0, 136, 255},
-			&color.RGBA{68, 0, 100, 255},
-			&color.RGBA{92, 0, 48, 255},
-			&color.RGBA{84, 4, 0, 255},
-			&color.RGBA{60, 24, 0, 255},
-			&color.RGBA{32, 42, 0, 255},
-			&color.RGBA{8, 58, 0, 255},
-			&color.RGBA{0, 64, 0, 255},
-			&color.RGBA{0, 60, 0, 255},
-			&color.RGBA{0, 50, 60, 255},
-			&color.RGBA{0, 0, 0, 255},
-			&color.RGBA{0, 0, 0, 255},
-			&color.RGBA{0, 0, 0, 255},
-
-			&color.RGBA{152, 150, 152, 255},
-			&color.RGBA{8, 76, 196, 255},
-			&color.RGBA{48, 50, 236, 255},
-			&color.RGBA{92, 30, 228, 255},
-			&color.RGBA{136, 20, 176, 255},
-			&color.RGBA{160, 20, 100, 255},
-			&color.RGBA{152, 34, 32, 255},
-			&color.RGBA{120, 60, 0, 255},
-			&color.RGBA{84, 90, 0, 255},
-			&color.RGBA{40, 114, 0, 255},
-			&color.RGBA{8, 124, 0, 255},
-			&color.RGBA{0, 118, 40, 255},
-			&color.RGBA{0, 102, 120, 255},
-			&color.RGBA{0, 0, 0, 255},
-			&color.RGBA{0, 0, 0, 255},
-			&color.RGBA{0, 0, 0, 255},
-
-			&color.RGBA{236, 238, 236, 255},
-			&color.RGBA{76, 154, 236, 255},
-			&color.RGBA{120, 124, 236, 255},
-			&color.RGBA{176, 98, 236, 255},
-			&color.RGBA{228, 84, 236, 255},
-			&color.RGBA{236, 88, 180, 255},
-			&color.RGBA{236, 106, 100, 255},
-			&color.RGBA{212, 136, 32, 255},
-			&color.RGBA{160, 170, 0, 255},
-			&color.RGBA{116, 196, 0, 255},
-			&color.RGBA{76, 208, 32, 255},
-			&color.RGBA{56, 204, 108, 255},
-			&color.RGBA{56, 180, 204, 255},
-			&color.RGBA{60, 60, 60, 255},
-			&color.RGBA{0, 0, 0, 255},
-			&color.RGBA{0, 0, 0, 255},
-
-			&color.RGBA{236, 238, 236, 255},
-			&color.RGBA{168, 204, 236, 255},
-			&color.RGBA{188, 188, 236, 255},
-			&color.RGBA{212, 178, 236, 255},
-			&color.RGBA{236, 174, 236, 255},
-			&color.RGBA{236, 174, 212, 255},
-			&color.RGBA{236, 180, 176, 255},
-			&color.RGBA{228, 196, 144, 255},
-			&color.RGBA{204, 210, 120, 255},
-			&color.RGBA{180, 222, 120, 255},
-			&color.RGBA{168, 226, 144, 255},
-			&color.RGBA{152, 226, 180, 255},
-			&color.RGBA{160, 214, 228, 255},
-			&color.RGBA{160, 162, 160, 255},
-			&color.RGBA{0, 0, 0, 255},
-			&color.RGBA{0, 0, 0, 255},
-		},
+		DEFAULT_COLORS_2C02,
 		CreateSprite(256, 240),
 		[2]*Sprite{
 			CreateSprite(256, 240),
@@ -167,8 +286,10 @@ func CreatePPU() *PPU2C02 {
 			CreateSprite(128, 128),
 			CreateSprite(128, 128)},
 		false,
-		0,
-		0}
+		0, 0,
+		0, 0, 0, 0, 0, 0,
+		0, 0, 0,
+	}
 }
 
 // PPURead : PPURead
@@ -229,21 +350,29 @@ func (p *PPU2C02) CPURead(address Word, readOnly bool) (byte, error) {
 	var data byte = 0
 
 	switch address {
-	case 0x0000:
+	case CONTROL_REGISTER:
 		break
-	case 0x0001:
+	case MASK_REGISTER:
 		break
-	case 0x0002:
+	case STATUS_REGISTER:
+		data = p.statusRegister&0xE0 | p.ppuDataBuffer&0x1F
+		p.ClearFlag(VERTICAL_BLANK, STATUS_REGISTER)
+		p.addressLatch = 0
 		break
-	case 0x0003:
+	case OAM_ADDRESS:
 		break
-	case 0x0004:
+	case OAM_DATA:
 		break
-	case 0x0005:
+	case SCROLL_REGISTER:
 		break
-	case 0x0006:
+	case ADDRESS_REGISTER:
 		break
-	case 0x0007:
+	case DATA_REGISTER:
+		data = p.ppuDataBuffer
+		p.ppuDataBuffer, _ = p.PPURead(p.ppuAddress, false)
+		if p.ppuAddress > 0x3F00 {
+			data = p.ppuDataBuffer
+		}
 		break
 	}
 	return data, nil
@@ -252,21 +381,33 @@ func (p *PPU2C02) CPURead(address Word, readOnly bool) (byte, error) {
 func (p *PPU2C02) CPUWrite(address Word, data byte) error {
 
 	switch address {
-	case 0x0000:
+	case CONTROL_REGISTER:
+		p.controlRegister = data
 		break
-	case 0x0001:
+	case MASK_REGISTER:
+		p.maskRegister = data
 		break
-	case 0x0002:
+	case STATUS_REGISTER:
+		p.statusRegister = data
 		break
-	case 0x0003:
+	case OAM_ADDRESS:
 		break
-	case 0x0004:
+	case OAM_DATA:
 		break
-	case 0x0005:
+	case SCROLL_REGISTER:
+		p.scrollRegister = data
 		break
-	case 0x0006:
+	case ADDRESS_REGISTER:
+		if p.addressLatch == 0 {
+			p.ppuAddress = p.ppuAddress&0x00FF | Word(data)<<8
+			p.addressRegister = 1
+		} else {
+			p.ppuAddress = p.ppuAddress&0xFF00 | Word(data)
+			p.addressRegister = 0
+		}
 		break
-	case 0x0007:
+	case DATA_REGISTER:
+		p.PPUWrite(p.ppuAddress, data)
 		break
 	}
 
@@ -282,9 +423,13 @@ func (p *PPU2C02) Clock() {
 	if p.cycle >= 341 {
 		p.cycle = 0
 		p.scanLine++
+		if p.scanLine >= 240 {
+			p.SetFlag(VERTICAL_BLANK, STATUS_REGISTER)
+		}
 		if p.scanLine >= 261 {
 			p.scanLine = -1
 			p.frameComplete = true
+			p.ClearFlag(VERTICAL_BLANK, STATUS_REGISTER)
 		}
 	}
 }
