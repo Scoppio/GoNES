@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
 )
 
 // ByteToHex : Converts letters to its equivalent hexadecimal code
@@ -27,4 +28,16 @@ func Hex(n uint32, d int) string {
 	}
 	b.WriteString(s)
 	return b.String()
+}
+
+func WriteDisassemble(disassemble map[Word]string, filename string) {
+	f, _ := os.Create(filename)
+	defer f.Close()
+	var i Word
+	for i < 0xFFFF {
+		if v, ok := disassemble[i]; ok {
+			f.WriteString(v + "\n")
+		}
+		i++
+	}
 }

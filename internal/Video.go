@@ -37,11 +37,12 @@ var (
 	selectedPalette byte = 0
 	imd             *imdraw.IMDraw
 	win             *pixelgl.Window
+	ROM_NAME        = "color_test"
 )
 
 func init() {
 	Nes = CreateBus(CreateCPU(), CreatePPU())
-	Nes.InsertCartridge(LoadCartridge("../test/roms/nestest.nes"))
+	Nes.InsertCartridge(LoadCartridge("../test/roms/" + ROM_NAME + ".nes"))
 	cpu = Nes.cpu
 	cpu.ConnectBus(Nes)
 	cpu.Reset()
@@ -49,7 +50,7 @@ func init() {
 
 func main() {
 	mapAsm = cpu.Disassemble(0x0000, 0xFFFF)
-
+	WriteDisassemble(mapAsm, "../output/"+ROM_NAME+".txt")
 	Nes.Reset()
 	pixelgl.Run(run)
 }
@@ -92,6 +93,7 @@ func run() {
 				for !Nes.cpu.Complete() {
 					Nes.Clock()
 				}
+
 				if Nes.ppu.Complete() {
 					Nes.ppu.frameComplete = false
 				}
@@ -117,6 +119,11 @@ func run() {
 				Nes.Clock()
 			}
 		}
+
+		if win.JustPressed(pixelgl.KeyZ) {
+			// Reset
+			Nes.cpu.SetStatusRegisterFlag(Z, true)
+		}
 		if win.Pressed(pixelgl.KeyP) {
 			// One microcode clock
 			selectedPalette++
@@ -132,7 +139,6 @@ func run() {
 		drawCode(516, 112, 16)
 
 		// drawRAM(2, 12, 0x0000, 16, 16)
-
 		// draw palette selected
 		drawRect(float64(int(516)+int(selectedPalette)*(swatchSize*5)-1), 132, swatchSize*4+2, swatchSize+2, &colornames.White)
 
@@ -144,10 +150,9 @@ func run() {
 
 		drawSprite(516, 2, Nes.ppu.GetPatternTable(0, selectedPalette), 1)
 		drawSprite(648, 2, Nes.ppu.GetPatternTable(1, selectedPalette), 1)
-		//
 		drawSprite(0, 0, Nes.ppu.GetScreen(), 2)
 
-		basicTxt.Draw(win, pixel.IM) // .Moved(c).Scaled(c, scale))
+		basicTxt.Draw(win, pixel.IM)
 		basicTxt.Clear()
 
 		win.Update()

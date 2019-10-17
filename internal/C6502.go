@@ -213,10 +213,7 @@ func (c *CPU6502) NonMaskableInterruptRequest() {
 
 func (c *CPU6502) fetch() byte {
 	if !FnEquals(OpCodesLookupTable[c.opcode].addressmode, IMP) {
-		f, e := c.CPURead(c.addressAbs)
-		if addressingError(e) {
-			//
-		}
+		f, _ := c.CPURead(c.addressAbs)
 		c.fetched = f
 	}
 	return c.fetched
@@ -673,16 +670,14 @@ func CMP(c *CPU6502) byte {
 // DEX : Decrement value at X Register
 func DEX(c *CPU6502) byte {
 	c.x--
-	c.SetStatusRegisterFlag(Z, c.x == 0x00)
-	c.SetStatusRegisterFlag(N, c.x&0x80 != 0)
+	c.SetFlagsZeroAndNegative(c.x)
 	return 0
 }
 
 // INX : Increment value at X Register
 func INX(c *CPU6502) byte {
 	c.x++
-	c.SetStatusRegisterFlag(Z, c.x == 0x00)
-	c.SetStatusRegisterFlag(N, c.x&0x80 != 0)
+	c.SetFlagsZeroAndNegative(c.x)
 	return 0
 }
 
@@ -690,10 +685,8 @@ func INX(c *CPU6502) byte {
 // Function:    A = M
 // Flags Out:   N, Z
 func LDA(c *CPU6502) byte {
-	c.fetch()
-	c.a = c.fetched
-	c.SetStatusRegisterFlag(Z, c.a == 0x00)
-	c.SetStatusRegisterFlag(N, c.a&0x80 != 0)
+	c.a = c.fetch()
+	c.SetFlagsZeroAndNegative(c.a)
 	return 1
 }
 

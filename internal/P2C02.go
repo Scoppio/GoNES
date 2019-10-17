@@ -45,12 +45,12 @@ var (
 type PPU2C02 struct {
 	bus                *Bus
 	cart               *Cartridge
-	nameTable          [2][1024]byte
+	nameTable          [2][1024]byte // VRAM
 	paletteTable       [32]byte
-	patternTable       [2][4096]byte
+	patternTable       [2][4096]byte // Pattern Memory
 	paletteScreen      [64]*color.RGBA
 	spriteScreen       *Sprite    // Sprite(256, 240)
-	spriteNameTable    [2]*Sprite // Sprite (128, 128), Sprite(128, 128)
+	spriteNameTable    [2]*Sprite // Sprite(128, 128), Sprite(128, 128)
 	spritePatternTable [2]*Sprite // Sprite(256, 240), Sprite(256, 240)
 	frameComplete      bool
 	scanLine           int16
@@ -314,7 +314,8 @@ func (p *PPU2C02) PPURead(address Word, readOnly bool) (byte, error) {
 	} else if address >= 0x2000 && address <= 0x3EFF {
 
 	} else if address >= 0x3F00 && address <= 0x3FFF {
-		address = address & 0x001F
+		address &= 0x001F
+
 		if address == 0x0010 {
 			address = 0x0000
 		} else if address == 0x0014 {
@@ -324,11 +325,7 @@ func (p *PPU2C02) PPURead(address Word, readOnly bool) (byte, error) {
 		} else if address == 0x001C {
 			address = 0x000C
 		}
-		if p.GetFlag(GRAY_SCALE, MASK_REGISTER) {
-			data = p.paletteTable[address] & 0x30
-		} else {
-			data = p.paletteTable[address] & 0x3F
-		}
+		data = p.paletteTable[address]
 	}
 
 	return data, nil
@@ -339,11 +336,11 @@ func (p *PPU2C02) PPUWrite(address Word, data byte) error {
 	address &= 0x3FFF
 
 	if p.cart.CPUWrite(address, data) {
-
+		//
 	} else if address >= 0x0000 && address <= 0x1FFF {
 		p.patternTable[(address&0x1000)>>12][address&0x0FFF] = data
 	} else if address >= 0x2000 && address <= 0x3EFF {
-
+		//
 	} else if address >= 0x3F00 && address <= 0x3FFF {
 		address &= 0x001F
 		if address == 0x0010 {
@@ -385,7 +382,7 @@ func (p *PPU2C02) CPURead(address Word, readOnly bool) (byte, error) {
 	case DATA_REGISTER:
 		data = p.ppuDataBuffer
 		p.ppuDataBuffer, _ = p.PPURead(p.ppuAddress, false)
-		if p.ppuAddress > 0x3F00 {
+		if p.ppuAddress >= 0x3F00 {
 			data = p.ppuDataBuffer
 		}
 		p.ppuAddress++
@@ -415,10 +412,10 @@ func (p *PPU2C02) CPUWrite(address Word, data byte) error {
 		break
 	case ADDRESS_REGISTER:
 		if p.addressLatch == 0 {
-			p.ppuAddress = p.ppuAddress&0x00FF | Word(data)<<8
+			p.ppuAddress = (p.ppuAddress & 0x00FF) | (Word(data) << 8)
 			p.addressRegister = 1
 		} else {
-			p.ppuAddress = p.ppuAddress&0xFF00 | Word(data)
+			p.ppuAddress = (p.ppuAddress & 0xFF00) | Word(data)
 			p.addressRegister = 0
 		}
 		break
