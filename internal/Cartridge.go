@@ -28,6 +28,49 @@ type Cartridge struct {
 	CHABanks  byte
 }
 
+func TestCartridge(rom string, offset Word) *Cartridge {
+
+	cartHeader := &header{
+		[4]byte{'t', 'e', 's', 't'},
+		1,
+		1,
+
+		0,
+		0,
+		0,
+
+		0,
+		0,
+		[5]byte{}}
+
+	mapperID := ((cartHeader.mapper2 >> 4) << 4) | (cartHeader.mapper1 >> 4)
+
+	// Discover what kind of iNes file, hardcoded 1 for now
+	var PRGMemory, CHAMemory []byte
+
+	buf := make([]byte, int(cartHeader.PGRRomBlocks)*16384)
+	PRGMemory = buf
+
+	nOffset := 0
+	for i := 0; i < len(rom); i += 2 {
+		PRGMemory[nOffset] = ByteToHex(rom[i])<<4 | ByteToHex(rom[i+1])
+		if i+2 < len(rom) && rom[i+2] == byte(' ') {
+			i++
+		}
+		nOffset++
+	}
+
+	PRGMemory[0xFFFC&0x3FFF] = byte(offset)
+	PRGMemory[0xFFFD&0x3FFF] = byte(offset >> 8)
+
+	buf = make([]byte, int(cartHeader.CHARomBlocks)*8192)
+	CHAMemory = buf
+
+	cart := &Cartridge{nil, cartHeader, mapperID, &Mapper000{cartHeader.PGRRomBlocks, cartHeader.CHARomBlocks}, PRGMemory, CHAMemory, cartHeader.PGRRomBlocks, cartHeader.CHARomBlocks}
+
+	return cart
+}
+
 func LoadCartridge(filepath string) *Cartridge {
 	file, err := os.Open(filepath)
 	if err != nil {

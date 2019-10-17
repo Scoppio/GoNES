@@ -37,12 +37,15 @@ var (
 	selectedPalette byte = 0
 	imd             *imdraw.IMDraw
 	win             *pixelgl.Window
-	ROM_NAME        = "color_test"
+	ROM_NAME        = "nestest"
 )
 
 func init() {
+	// rom := "A9 3F 8D 06 20 A9 01 8D 06 20 A9 02 8D 07 20"
+
 	Nes = CreateBus(CreateCPU(), CreatePPU())
 	Nes.InsertCartridge(LoadCartridge("../test/roms/" + ROM_NAME + ".nes"))
+	// Nes.InsertCartridge(TestCartridge(rom, 0x8000))
 	cpu = Nes.cpu
 	cpu.ConnectBus(Nes)
 	cpu.Reset()

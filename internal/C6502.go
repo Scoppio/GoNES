@@ -121,7 +121,6 @@ func (c *CPU6502) Clock() {
 		OperationCount++
 	}
 
-	ClockCount++
 	c.cycles--
 }
 

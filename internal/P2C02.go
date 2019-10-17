@@ -242,9 +242,6 @@ func (p *PPU2C02) GetColorFromPaletteRam(palette, pixelValue byte) *color.RGBA {
 	idx, _ := p.PPURead(0x3F00+Word(palette)<<2+Word(pixelValue), false)
 	idx &= 0x3F
 	c := p.paletteScreen[idx]
-	// if pixelValue == byte(2) {
-	// 	c = p.paletteScreen[3]
-	// }
 	return c
 }
 
@@ -413,10 +410,10 @@ func (p *PPU2C02) CPUWrite(address Word, data byte) error {
 	case ADDRESS_REGISTER:
 		if p.addressLatch == 0 {
 			p.ppuAddress = (p.ppuAddress & 0x00FF) | (Word(data) << 8)
-			p.addressRegister = 1
+			p.addressLatch = 1
 		} else {
 			p.ppuAddress = (p.ppuAddress & 0xFF00) | Word(data)
-			p.addressRegister = 0
+			p.addressLatch = 0
 		}
 		break
 	case DATA_REGISTER:
