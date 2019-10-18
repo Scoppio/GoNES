@@ -166,10 +166,10 @@ func (p *PPU2C02) GetFlag(flag Flag, at Register) bool {
 		break
 	case ADDRESS_REGISTER:
 		longRegister = p.addressRegister
-		return (longRegister >> flag & 0x0001) == 0
+		return (longRegister >> Word(flag) & Word(0x0001)) == 0
 	}
 
-	return (shortRegister >> flag & 0x01) == 0
+	return (shortRegister >> byte(flag) & byte(0x01)) == 0
 }
 
 func (p *PPU2C02) SetFlag(flag Flag, at Register) {

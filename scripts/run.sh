@@ -1,9 +1,9 @@
 go run ../internal/Video.go \
     ../internal/Bus.go \
     ../internal/C6502.go \
-    ../internal/P2C02.go \
-    ../internal/DataTypes.go \
-    ../internal/Utils.go \
     ../internal/Cartridge.go \
+    ../internal/DataTypes.go \
     ../internal/Mapper.go \
-    ../internal/Renderer.go
+    ../internal/P2C02.go \
+    ../internal/Renderer.go \
+    ../internal/Utils.go \
