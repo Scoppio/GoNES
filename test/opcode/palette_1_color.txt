@@ -1,0 +1,17 @@
+ 8000
+A9 3F 8D 06 20 A9 01 8D 06 20 A9 02 8D 07 20
+
+// Entry point
+// ROM code
+
+*=$8000
+LDA #$3F
+STA $2006
+LDA #$01
+STA $2006
+LDA #$02
+STA $2007
+NOP
+LOOP JMP LOOP
+
+// TestCartridge(rom, 0x8000)

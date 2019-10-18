@@ -42,7 +42,6 @@ var (
 
 func init() {
 	// rom := "A9 3F 8D 06 20 A9 01 8D 06 20 A9 02 8D 07 20"
-
 	Nes = CreateBus(CreateCPU(), CreatePPU())
 	Nes.InsertCartridge(LoadCartridge("../test/roms/" + ROM_NAME + ".nes"))
 	// Nes.InsertCartridge(TestCartridge(rom, 0x8000))

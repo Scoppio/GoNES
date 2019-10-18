@@ -100,6 +100,12 @@ func (b *Bus) Clock() {
 	if ClockCount%3 == 0 {
 		b.cpu.Clock()
 	}
+
+	if b.ppu.NonMaskableInterrupt {
+		b.cpu.NonMaskableInterruptRequest()
+		b.ppu.NonMaskableInterrupt = false
+	}
+
 	ClockCount++
 }
 

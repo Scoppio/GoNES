@@ -66,9 +66,10 @@ type PPU2C02 struct {
 	addressRegister Word // 14 bits
 	dataRegister    byte
 
-	addressLatch  byte
-	ppuDataBuffer byte
-	ppuAddress    Word
+	addressLatch         byte
+	ppuDataBuffer        byte
+	ppuAddress           Word
+	NonMaskableInterrupt bool
 }
 
 func init() {
@@ -296,6 +297,7 @@ func CreatePPU() *PPU2C02 {
 		0, 0,
 		0, 0, 0, 0, 0, 0,
 		0, 0, 0,
+		false,
 	}
 }
 
@@ -363,7 +365,6 @@ func (p *PPU2C02) CPURead(address Word, readOnly bool) (byte, error) {
 	case MASK_REGISTER:
 		break
 	case STATUS_REGISTER:
-		p.SetFlag(VERTICAL_BLANK, STATUS_REGISTER)
 		data = p.statusRegister&0xE0 | p.ppuDataBuffer&0x1F
 		p.ClearFlag(VERTICAL_BLANK, STATUS_REGISTER)
 		p.addressLatch = 0
@@ -427,7 +428,18 @@ func (p *PPU2C02) CPUWrite(address Word, data byte) error {
 
 // Clock : Bus clock implementation pulses the clock to all things attached to it
 func (p *PPU2C02) Clock() {
-	// c := byte(p.bus.cpu.opcode) % byte(len(p.paletteScreen))
+
+	if p.scanLine == -1 && p.cycle == 1 {
+		p.ClearFlag(VERTICAL_BLANK, STATUS_REGISTER)
+	}
+
+	if p.scanLine == 241 && p.cycle == 1 {
+		p.SetFlag(VERTICAL_BLANK, STATUS_REGISTER)
+		if p.GetFlag(ENABLE_NMI, CONTROL_REGISTER) {
+			p.NonMaskableInterrupt = true
+		}
+	}
+
 	c := byte(rand.Intn(len(p.paletteScreen)))
 	p.GetScreen().SetPixel(int(p.cycle)-1, int(p.scanLine), p.paletteScreen[c])
 	p.cycle++
