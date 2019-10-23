@@ -5,6 +5,13 @@ import (
 	"os"
 )
 
+const (
+	HORIZONTAL   = 0
+	VERTICAL     = 1
+	ONESCREEN_LO = 2
+	ONESCREEN_HI = 3
+)
+
 type header struct {
 	name         [4]byte
 	PGRRomBlocks byte
@@ -26,6 +33,7 @@ type Cartridge struct {
 	CHAMemory []byte
 	PRGBanks  byte
 	CHABanks  byte
+	Mirror    int
 }
 
 func TestCartridge(rom string, offset Word) *Cartridge {
@@ -66,7 +74,8 @@ func TestCartridge(rom string, offset Word) *Cartridge {
 	buf = make([]byte, int(cartHeader.CHARomBlocks)*8192)
 	CHAMemory = buf
 
-	cart := &Cartridge{nil, cartHeader, mapperID, &Mapper000{cartHeader.PGRRomBlocks, cartHeader.CHARomBlocks}, PRGMemory, CHAMemory, cartHeader.PGRRomBlocks, cartHeader.CHARomBlocks}
+	cart := &Cartridge{nil, cartHeader, mapperID,
+		&Mapper000{cartHeader.PGRRomBlocks, cartHeader.CHARomBlocks}, PRGMemory, CHAMemory, cartHeader.PGRRomBlocks, cartHeader.CHARomBlocks, HORIZONTAL}
 
 	return cart
 }
@@ -103,6 +112,10 @@ func LoadCartridge(filepath string) *Cartridge {
 	}
 
 	mapperID := ((cartHeader.mapper2 >> 4) << 4) | (cartHeader.mapper1 >> 4)
+	mirror := VERTICAL
+	if cartHeader.mapper1&0x01 != 0 {
+		mirror = HORIZONTAL
+	}
 
 	// Discover what kind of iNes file, hardcoded 1 for now
 	fileType := 1
@@ -124,7 +137,7 @@ func LoadCartridge(filepath string) *Cartridge {
 		// Not implemented yet
 	}
 
-	cart := &Cartridge{nil, cartHeader, mapperID, &Mapper000{cartHeader.PGRRomBlocks, cartHeader.CHARomBlocks}, PRGMemory, CHAMemory, cartHeader.PGRRomBlocks, cartHeader.CHARomBlocks}
+	cart := &Cartridge{nil, cartHeader, mapperID, &Mapper000{cartHeader.PGRRomBlocks, cartHeader.CHARomBlocks}, PRGMemory, CHAMemory, cartHeader.PGRRomBlocks, cartHeader.CHARomBlocks, mirror}
 
 	return cart
 }
