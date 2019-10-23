@@ -27,15 +27,14 @@ const (
 	ENHANCE_GREEN          = 6
 	ENHANCE_BLUE           = 7
 
-	NAMETABLE_X       = 0
-	NAMETABLE_Y       = 1
-	INCREMENT_MODE    = 2
-	PATTERN_SPRITE    = 3
-	PATTERN_BACKGROUN = 4
-	SPRITE_SIZE       = 5
-	SLAVE_MODE        = 6
-	ENABLE_NMI        = 7
-	COARSE_X          = 5
+	NAMETABLE_X        = 0
+	NAMETABLE_Y        = 1
+	INCREMENT_MODE     = 2
+	PATTERN_SPRITE     = 3
+	PATTERN_BACKGROUND = 4
+	SPRITE_SIZE        = 5
+	SLAVE_MODE         = 6
+	ENABLE_NMI         = 7
 )
 
 var (
@@ -227,6 +226,11 @@ func CreatePPU() *PPU2C02 {
 		0, 0, 0, 0}
 }
 
+// InsertCartridge : sets the pointer to the cartridge in the PPU
+func (p *PPU2C02) InsertCartridge(c *Cartridge) {
+	p.cart = c
+}
+
 // GetFlag : GetFlag
 func (p *PPU2C02) GetFlag(flag Flag, at Register) bool {
 	var shortRegister byte
@@ -346,14 +350,21 @@ func (p *PPU2C02) GetColorFromPaletteRam(palette, pixelValue byte) *color.RGBA {
 // GetPatternTable : GetPatternTable
 func (p *PPU2C02) GetPatternTable(i, palette byte) *Sprite {
 	var tileY, tileX, row, col, offset int
+
 	for tileY = 0; tileY < 16; tileY++ {
+
 		for tileX = 0; tileX < 16; tileX++ {
+
 			offset = tileY*256 + tileX*16
+
 			for row = 0; row < 8; row++ {
-				pos := Word(i)*Word(0x1000) + Word(offset+row)
+
+				pos := Word(i)*Word(0x1000) + Word(offset) + Word(row)
 				tileLSB, _ := p.PPURead(pos+0, true)
 				tileMSB, _ := p.PPURead(pos+8, true)
+
 				for col = 0; col < 8; col++ {
+
 					pixel := (tileMSB & 0x01) + (tileLSB & 0x01)
 					tileLSB = tileLSB >> 1
 					tileMSB = tileMSB >> 1
@@ -381,11 +392,14 @@ func (p *PPU2C02) PPURead(address Word, readOnly bool) (byte, error) {
 	var data byte = 0
 	address &= 0x3FFF
 
-	if d, ok := p.cart.PPURead(address); ok {
-		data = d
+	if _, ok := p.cart.PPURead(address); ok {
+		// data = d
 	} else if address >= 0x0000 && address <= 0x1FFF {
 		data = p.patternTable[(address&0x1000)>>12][address&0x0FFF]
 	} else if address >= 0x2000 && address <= 0x3EFF {
+
+		address &= 0x0FFF
+
 		if p.cart.Mirror == VERTICAL {
 			if address >= 0x0000 && address <= 0x03FF {
 				p.nameTable[0][address&0x03FF] = data
@@ -419,7 +433,11 @@ func (p *PPU2C02) PPURead(address Word, readOnly bool) (byte, error) {
 		} else if address == 0x001C {
 			address = 0x000C
 		}
-		data = p.paletteTable[address]
+		if p.GetFlag(GRAY_SCALE, MASK_REGISTER) {
+			data = p.paletteTable[address] & 0x30
+		} else {
+			data = p.paletteTable[address] & 0x3F
+		}
 	}
 
 	return data, nil
@@ -429,11 +447,14 @@ func (p *PPU2C02) PPURead(address Word, readOnly bool) (byte, error) {
 func (p *PPU2C02) PPUWrite(address Word, data byte) error {
 	address &= 0x3FFF
 
-	if p.cart.CPUWrite(address, data) {
-		//
+	if p.cart.PPUWrite(address, data) {
+		// empty
 	} else if address >= 0x0000 && address <= 0x1FFF {
 		p.patternTable[(address&0x1000)>>12][address&0x0FFF] = data
 	} else if address >= 0x2000 && address <= 0x3EFF {
+
+		address &= 0x0FFF
+
 		if p.cart.Mirror == VERTICAL {
 			if address >= 0x0000 && address <= 0x03FF {
 				data = p.nameTable[0][address&0x03FF]
@@ -499,7 +520,11 @@ func (p *PPU2C02) CPURead(address Word, readOnly bool) (byte, error) {
 		if p.vRam.getAddress() >= 0x3F00 {
 			data = p.ppuDataBuffer
 		}
-		p.vRam.increment()
+		increment := Word(1)
+		if p.GetFlag(INCREMENT_MODE, CONTROL_REGISTER) {
+			increment = Word(32)
+		}
+		p.vRam.add(increment)
 		break
 	}
 	return data, nil
@@ -517,7 +542,6 @@ func (p *PPU2C02) CPUWrite(address Word, data byte) error {
 		p.maskRegister = data
 		break
 	case STATUS_REGISTER:
-		p.statusRegister = data
 		break
 	case OAM_ADDRESS:
 		break
@@ -527,7 +551,6 @@ func (p *PPU2C02) CPUWrite(address Word, data byte) error {
 		if p.addressLatch == 0 {
 			p.fineX = data & 0x07
 			p.tRam.coarseX = data >> 3
-
 			p.addressLatch = 1
 		} else {
 			p.tRam.fineY = data & 0x07
@@ -538,7 +561,7 @@ func (p *PPU2C02) CPUWrite(address Word, data byte) error {
 		break
 	case ADDRESS_REGISTER:
 		if p.addressLatch == 0 {
-			p.tRam.set((p.tRam.getAddress() & 0x00FF) | (Word(data) << 8))
+			p.tRam.set((p.tRam.getAddress() & 0x00FF) | (Word(data&0x3F) << 8))
 			p.addressLatch = 1
 		} else {
 			p.tRam.set((p.tRam.getAddress() & 0xFF00) | Word(data))
@@ -557,6 +580,27 @@ func (p *PPU2C02) CPUWrite(address Word, data byte) error {
 	}
 
 	return nil
+}
+
+func (p *PPU2C02) Reset() {
+	p.fineX = 0x00
+	p.addressLatch = 0x00
+	p.ppuDataBuffer = 0x00
+	p.scanLine = 0
+	p.cycle = 0
+	p.bgNextTileId = 0x00
+	p.bgNextTileAttrib = 0x00
+	p.bgNextTileLsb = 0x00
+	p.bgNextTileMsb = 0x00
+	p.bgShifterPatternLo = 0x0000
+	p.bgShifterPatternHi = 0x0000
+	p.bgShifterAttribLo = 0x0000
+	p.bgShifterAttribHi = 0x0000
+	p.statusRegister = 0x00
+	p.maskRegister = 0x00
+	p.controlRegister = 0x00
+	p.vRam.set(0x0000)
+	p.tRam.set(0x0000)
 }
 
 // Clock : Bus clock implementation pulses the clock to all things attached to it
@@ -643,6 +687,11 @@ func (p *PPU2C02) Clock() {
 
 	if p.scanLine >= -1 && p.scanLine < 240 {
 
+		if p.scanLine == 0 && p.cycle == 0 {
+			// Odd frame, cycle skip
+			p.cycle = 1
+		}
+
 		if p.scanLine == -1 && p.cycle == 1 {
 			p.ClearFlag(VERTICAL_BLANK, STATUS_REGISTER)
 		}
@@ -658,19 +707,19 @@ func (p *PPU2C02) Clock() {
 				p.bgNextTileAttrib, _ = p.PPURead(
 					Word(0x23C0)|(Word(p.vRam.nametableY)<<11)|(Word(p.vRam.nametableX)<<10)|((Word(p.vRam.coarseY)>>2)<<3)|(Word(p.vRam.coarseX)>>2),
 					false)
-				if p.vRam.coarseY&0x02 != 0x00 {
+				if p.vRam.coarseY&0x02 > 0 {
 					p.bgNextTileAttrib >>= 4
 				}
-				if p.vRam.coarseX&0x02 != 0x00 {
+				if p.vRam.coarseX&0x02 > 0 {
 					p.bgNextTileAttrib >>= 2
 				}
 				p.bgNextTileAttrib &= 0x03
 				break
 			case 4:
-				p.bgNextTileLsb, _ = p.PPURead((Word(p.GetFlagByte(PATTERN_BACKGROUN, CONTROL_REGISTER))<<12)+Word(p.bgNextTileId)<<4+Word(p.vRam.fineY)+0, false)
+				p.bgNextTileLsb, _ = p.PPURead((Word(p.GetFlagByte(PATTERN_BACKGROUND, CONTROL_REGISTER))<<12)+Word(p.bgNextTileId)<<4+Word(p.vRam.fineY)+0, false)
 				break
 			case 6:
-				p.bgNextTileLsb, _ = p.PPURead(Word(p.GetFlagByte(PATTERN_BACKGROUN, CONTROL_REGISTER))<<12+Word(p.bgNextTileId)<<4+Word(p.vRam.fineY)+8, false)
+				p.bgNextTileLsb, _ = p.PPURead(Word(p.GetFlagByte(PATTERN_BACKGROUND, CONTROL_REGISTER))<<12+Word(p.bgNextTileId)<<4+Word(p.vRam.fineY)+8, false)
 				break
 			case 7:
 				incrementScrollX(p)
@@ -683,14 +732,23 @@ func (p *PPU2C02) Clock() {
 			incrementScrollY(p)
 		}
 		if p.cycle == 257 {
+			loadBackgroundShifters(p)
 			transferAddressX(p)
 		}
+
+		// Superfluous reads of tile id at end of scanline
+		if p.cycle == 338 || p.cycle == 340 {
+			p.bgNextTileId, _ = p.PPURead(0x2000|(p.vRam.getAddress()&0x0FFF), false)
+		}
+
 		if p.scanLine == -1 && p.cycle >= 280 && p.cycle < 305 {
 			transferAddressY(p)
 		}
 	}
 
-	// if p.scanline == 240 // post render scanline
+	if p.scanLine == 240 {
+		// DO NOTHING - POST RENDER SCANLINE
+	}
 
 	if p.scanLine >= 241 && p.scanLine < 261 {
 		if p.scanLine == 241 && p.cycle == 1 {
@@ -749,9 +807,4 @@ func (p *PPU2C02) Clock() {
 			p.frameComplete = true
 		}
 	}
-}
-
-// InsertCartridge : sets the pointer to the cartridge in the PPU
-func (p *PPU2C02) InsertCartridge(c *Cartridge) {
-	p.cart = c
 }

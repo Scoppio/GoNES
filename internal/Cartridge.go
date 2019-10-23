@@ -112,9 +112,9 @@ func LoadCartridge(filepath string) *Cartridge {
 	}
 
 	mapperID := ((cartHeader.mapper2 >> 4) << 4) | (cartHeader.mapper1 >> 4)
-	mirror := VERTICAL
-	if cartHeader.mapper1&0x01 != 0 {
-		mirror = HORIZONTAL
+	mirror := HORIZONTAL
+	if cartHeader.mapper1&0x01 > 0 {
+		mirror = VERTICAL
 	}
 
 	// Discover what kind of iNes file, hardcoded 1 for now
@@ -128,10 +128,17 @@ func LoadCartridge(filepath string) *Cartridge {
 		_, e := file.Read(buf)
 		logError(e)
 		PRGMemory = buf
-		buf = make([]byte, int(cartHeader.CHARomBlocks)*8192) // define your buffer size here.
-		_, e = file.Read(buf)
-		logError(e)
-		CHAMemory = buf
+		if cartHeader.CHARomBlocks == 0 {
+			buf = make([]byte, 8192) // define your buffer size here.
+			_, e = file.Read(buf)
+			logError(e)
+			CHAMemory = buf
+		} else {
+			buf = make([]byte, int(cartHeader.CHARomBlocks)*8192) // define your buffer size here.
+			_, e = file.Read(buf)
+			logError(e)
+			CHAMemory = buf
+		}
 
 	} else if fileType == 2 {
 		// Not implemented yet
