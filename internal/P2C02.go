@@ -692,10 +692,20 @@ func (p *PPU2C02) Clock() {
 
 	// if p.scanline == 240 // post render scanline
 
-	if p.scanLine == 241 && p.cycle == 1 {
-		p.SetFlag(VERTICAL_BLANK, STATUS_REGISTER)
-		if p.GetFlag(ENABLE_NMI, CONTROL_REGISTER) {
-			p.NonMaskableInterrupt = true
+	if p.scanLine >= 241 && p.scanLine < 261 {
+		if p.scanLine == 241 && p.cycle == 1 {
+			// Effectively end of frame, so set vertical blank flag
+			p.SetFlag(VERTICAL_BLANK, STATUS_REGISTER)
+
+			// If the control register tells us to emit a NMI when
+			// entering vertical blanking period, do it! The CPU
+			// will be informed that rendering is complete so it can
+			// perform operations with the PPU knowing it wont
+			// produce visible artefacts
+
+			if p.GetFlag(ENABLE_NMI, CONTROL_REGISTER) {
+				p.NonMaskableInterrupt = true
+			}
 		}
 	}
 
