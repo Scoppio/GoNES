@@ -391,6 +391,7 @@ func (p *PPU2C02) ConnectBus(bus *Bus) {
 func (p *PPU2C02) PPURead(address Word, readOnly bool) (byte, error) {
 	var data byte = 0
 	address &= 0x3FFF
+	
 
 	if _, ok := p.cart.PPURead(address); ok {
 		// data = d
@@ -495,38 +496,62 @@ func (p *PPU2C02) PPUWrite(address Word, data byte) error {
 // CPURead : CPURead
 func (p *PPU2C02) CPURead(address Word, readOnly bool) (byte, error) {
 	var data byte = 0
-
-	switch address {
-	case CONTROL_REGISTER:
-		break
-	case MASK_REGISTER:
-		break
-	case STATUS_REGISTER:
-		data = p.statusRegister&0xE0 | p.ppuDataBuffer&0x1F
-		p.ClearFlag(VERTICAL_BLANK, STATUS_REGISTER)
-		p.addressLatch = 0
-		break
-	case OAM_ADDRESS:
-		break
-	case OAM_DATA:
-		break
-	case SCROLL_REGISTER:
-		break
-	case ADDRESS_REGISTER:
-		break
-	case DATA_REGISTER:
-		data = p.ppuDataBuffer
-		p.ppuDataBuffer, _ = p.PPURead(p.vRam.getAddress(), false)
-		if p.vRam.getAddress() >= 0x3F00 {
+	if readOnly {
+		switch address {
+		case CONTROL_REGISTER:
+			data = p.controlRegister
+			break
+		case MASK_REGISTER:
+			data = p.maskRegister
+			break
+		case STATUS_REGISTER:
+			data = p.statusRegister
+			break
+		case OAM_ADDRESS:
+			break
+		case OAM_DATA:
+			break
+		case SCROLL_REGISTER:
+			break
+		case ADDRESS_REGISTER:
+			break
+		case DATA_REGISTER:
+			break
+		}
+	} else {
+		switch address {
+		case CONTROL_REGISTER:
+			break
+		case MASK_REGISTER:
+			break
+		case STATUS_REGISTER:
+			data = p.statusRegister&0xE0 | p.ppuDataBuffer&0x1F
+			p.ClearFlag(VERTICAL_BLANK, STATUS_REGISTER)
+			p.addressLatch = 0
+			break
+		case OAM_ADDRESS:
+			break
+		case OAM_DATA:
+			break
+		case SCROLL_REGISTER:
+			break
+		case ADDRESS_REGISTER:
+			break
+		case DATA_REGISTER:
 			data = p.ppuDataBuffer
+			p.ppuDataBuffer, _ = p.PPURead(p.vRam.getAddress(), false)
+			if p.vRam.getAddress() >= 0x3F00 {
+				data = p.ppuDataBuffer
+			}
+			increment := Word(1)
+			if p.GetFlag(INCREMENT_MODE, CONTROL_REGISTER) {
+				increment = Word(32)
+			}
+			p.vRam.add(increment)
+			break
 		}
-		increment := Word(1)
-		if p.GetFlag(INCREMENT_MODE, CONTROL_REGISTER) {
-			increment = Word(32)
-		}
-		p.vRam.add(increment)
-		break
 	}
+	
 	return data, nil
 }
 
@@ -571,6 +596,7 @@ func (p *PPU2C02) CPUWrite(address Word, data byte) error {
 		break
 	case DATA_REGISTER:
 		p.PPUWrite(p.vRam.getAddress(), data)
+
 		increment := Word(1)
 		if p.GetFlag(INCREMENT_MODE, CONTROL_REGISTER) {
 			increment = Word(32)
@@ -808,3 +834,4 @@ func (p *PPU2C02) Clock() {
 		}
 	}
 }
+§§
