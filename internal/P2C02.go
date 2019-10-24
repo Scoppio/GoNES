@@ -391,7 +391,6 @@ func (p *PPU2C02) ConnectBus(bus *Bus) {
 func (p *PPU2C02) PPURead(address Word, readOnly bool) (byte, error) {
 	var data byte = 0
 	address &= 0x3FFF
-	
 
 	if _, ok := p.cart.PPURead(address); ok {
 		// data = d
@@ -525,7 +524,7 @@ func (p *PPU2C02) CPURead(address Word, readOnly bool) (byte, error) {
 		case MASK_REGISTER:
 			break
 		case STATUS_REGISTER:
-			data = p.statusRegister&0xE0 | p.ppuDataBuffer&0x1F
+			data = (p.statusRegister & 0xE0) | (p.ppuDataBuffer & 0x1F)
 			p.ClearFlag(VERTICAL_BLANK, STATUS_REGISTER)
 			p.addressLatch = 0
 			break
@@ -543,15 +542,15 @@ func (p *PPU2C02) CPURead(address Word, readOnly bool) (byte, error) {
 			if p.vRam.getAddress() >= 0x3F00 {
 				data = p.ppuDataBuffer
 			}
-			increment := Word(1)
 			if p.GetFlag(INCREMENT_MODE, CONTROL_REGISTER) {
-				increment = Word(32)
+				p.vRam.add(32)
+			} else {
+				p.vRam.increment()
 			}
-			p.vRam.add(increment)
 			break
 		}
 	}
-	
+
 	return data, nil
 }
 
@@ -597,11 +596,12 @@ func (p *PPU2C02) CPUWrite(address Word, data byte) error {
 	case DATA_REGISTER:
 		p.PPUWrite(p.vRam.getAddress(), data)
 
-		increment := Word(1)
 		if p.GetFlag(INCREMENT_MODE, CONTROL_REGISTER) {
-			increment = Word(32)
+			p.vRam.add(32)
+		} else {
+			p.vRam.increment()
 		}
-		p.vRam.add(increment)
+
 		break
 	}
 
@@ -636,7 +636,11 @@ func (p *PPU2C02) Clock() {
 		if p.GetFlag(RENDER_BACKGROUND, MASK_REGISTER) || p.GetFlag(RENDER_SPRITES, MASK_REGISTER) {
 			if p.vRam.coarseX == byte(31) {
 				p.vRam.coarseX = 0
-				p.vRam.nametableX = ^p.vRam.nametableX
+				if p.vRam.nametableX == 0 {
+					p.vRam.nametableX = 1
+				} else {
+					p.vRam.nametableX = 0
+				}
 			} else {
 				p.vRam.coarseX++
 			}
@@ -652,19 +656,16 @@ func (p *PPU2C02) Clock() {
 
 				if p.vRam.coarseY == 29 {
 					p.vRam.coarseY = 0
-					p.vRam.nametableY = ^p.vRam.nametableY
+					if p.vRam.nametableY == 0 {
+						p.vRam.nametableY = 1
+					} else {
+						p.vRam.nametableY = 0
+					}
 				} else if p.vRam.coarseY == 31 {
 					p.vRam.coarseY = 0
 				} else {
 					p.vRam.coarseY++
 				}
-			}
-
-			if p.vRam.coarseX == byte(31) {
-				p.vRam.coarseX = 0
-				p.vRam.nametableX = ^p.vRam.nametableX
-			} else {
-				p.vRam.coarseX++
 			}
 		}
 	}
@@ -690,13 +691,13 @@ func (p *PPU2C02) Clock() {
 		p.bgShifterPatternHi = p.bgShifterPatternHi&0xFF00 | Word(p.bgNextTileMsb)
 
 		lo := Word(0x00)
-		if p.bgNextTileAttrib*0x01 != 0 {
+		if p.bgNextTileAttrib&0x01 != 0 {
 			lo = Word(0x00FF)
 		}
 		p.bgShifterAttribLo = p.bgShifterAttribLo&0xFF00 | lo
 
 		hi := Word(0x00)
-		if p.bgNextTileAttrib*0x02 != 0 {
+		if p.bgNextTileAttrib&0x02 != 0 {
 			hi = Word(0x00FF)
 		}
 		p.bgShifterAttribHi = p.bgShifterAttribHi&0xFF00 | hi
@@ -706,6 +707,7 @@ func (p *PPU2C02) Clock() {
 		if p.GetFlag(RENDER_BACKGROUND, MASK_REGISTER) {
 			p.bgShifterPatternLo <<= 1
 			p.bgShifterPatternHi <<= 1
+
 			p.bgShifterAttribLo <<= 1
 			p.bgShifterAttribHi <<= 1
 		}
@@ -834,4 +836,3 @@ func (p *PPU2C02) Clock() {
 		}
 	}
 }
-§§

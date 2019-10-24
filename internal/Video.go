@@ -37,7 +37,7 @@ var (
 	selectedPalette byte = 0
 	imd             *imdraw.IMDraw
 	win             *pixelgl.Window
-	ROM_NAME        = "color_test"
+	ROM_NAME        = "nestest"
 )
 
 func init() {
