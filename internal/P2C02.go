@@ -14,9 +14,11 @@ const (
 	ADDRESS_REGISTER = 6
 	DATA_REGISTER    = 7
 
-	VERTICAL_BLANK  = 7
-	SPRITE_ZERO_HIT = 6
+	// status register
+	// unused 0-4
 	SPRITE_OVERFLOW = 5
+	SPRITE_ZERO_HIT = 6
+	VERTICAL_BLANK  = 7
 
 	GRAY_SCALE             = 0
 	RENDER_BACKGROUND_LEFT = 1
@@ -33,7 +35,7 @@ const (
 	PATTERN_SPRITE     = 3
 	PATTERN_BACKGROUND = 4
 	SPRITE_SIZE        = 5
-	SLAVE_MODE         = 6
+	SLAVE_MODE         = 6 // unused
 	ENABLE_NMI         = 7
 )
 
@@ -222,7 +224,6 @@ func CreatePPU() *PPU2C02 {
 		0,
 
 		0, 0, 0, 0,
-
 		0, 0, 0, 0}
 }
 
@@ -403,7 +404,7 @@ func (p *PPU2C02) PPURead(address Word, readOnly bool) (byte, error) {
 		if p.cart.Mirror == VERTICAL {
 			if address >= 0x0000 && address <= 0x03FF {
 				p.nameTable[0][address&0x03FF] = data
-			} else if address >= 0x0400 && address <= 0x03FF {
+			} else if address >= 0x0400 && address <= 0x07FF {
 				p.nameTable[1][address&0x03FF] = data
 			} else if address >= 0x0800 && address <= 0x0BFF {
 				p.nameTable[0][address&0x03FF] = data
@@ -413,7 +414,7 @@ func (p *PPU2C02) PPURead(address Word, readOnly bool) (byte, error) {
 		} else if p.cart.Mirror == HORIZONTAL {
 			if address >= 0x0000 && address <= 0x03FF {
 				p.nameTable[0][address&0x03FF] = data
-			} else if address >= 0x0400 && address <= 0x03FF {
+			} else if address >= 0x0400 && address <= 0x07FF {
 				p.nameTable[0][address&0x03FF] = data
 			} else if address >= 0x0800 && address <= 0x0BFF {
 				p.nameTable[1][address&0x03FF] = data
@@ -448,7 +449,7 @@ func (p *PPU2C02) PPUWrite(address Word, data byte) error {
 	address &= 0x3FFF
 
 	if p.cart.PPUWrite(address, data) {
-		// empty
+		// left empty
 	} else if address >= 0x0000 && address <= 0x1FFF {
 		p.patternTable[(address&0x1000)>>12][address&0x0FFF] = data
 	} else if address >= 0x2000 && address <= 0x3EFF {
@@ -458,7 +459,7 @@ func (p *PPU2C02) PPUWrite(address Word, data byte) error {
 		if p.cart.Mirror == VERTICAL {
 			if address >= 0x0000 && address <= 0x03FF {
 				data = p.nameTable[0][address&0x03FF]
-			} else if address >= 0x0400 && address <= 0x03FF {
+			} else if address >= 0x0400 && address <= 0x07FF {
 				data = p.nameTable[1][address&0x03FF]
 			} else if address >= 0x0800 && address <= 0x0BFF {
 				data = p.nameTable[0][address&0x03FF]
@@ -468,7 +469,7 @@ func (p *PPU2C02) PPUWrite(address Word, data byte) error {
 		} else if p.cart.Mirror == HORIZONTAL {
 			if address >= 0x0000 && address <= 0x03FF {
 				data = p.nameTable[0][address&0x03FF]
-			} else if address >= 0x0400 && address <= 0x03FF {
+			} else if address >= 0x0400 && address <= 0x07FF {
 				data = p.nameTable[0][address&0x03FF]
 			} else if address >= 0x0800 && address <= 0x0BFF {
 				data = p.nameTable[1][address&0x03FF]
@@ -636,11 +637,7 @@ func (p *PPU2C02) Clock() {
 		if p.GetFlag(RENDER_BACKGROUND, MASK_REGISTER) || p.GetFlag(RENDER_SPRITES, MASK_REGISTER) {
 			if p.vRam.coarseX == byte(31) {
 				p.vRam.coarseX = 0
-				if p.vRam.nametableX == 0 {
-					p.vRam.nametableX = 1
-				} else {
-					p.vRam.nametableX = 0
-				}
+				p.vRam.nametableX = ^p.vRam.nametableX
 			} else {
 				p.vRam.coarseX++
 			}
@@ -654,14 +651,10 @@ func (p *PPU2C02) Clock() {
 			} else {
 				p.vRam.fineY = 0
 
-				if p.vRam.coarseY == 29 {
+				if p.vRam.coarseY == byte(29) {
 					p.vRam.coarseY = 0
-					if p.vRam.nametableY == 0 {
-						p.vRam.nametableY = 1
-					} else {
-						p.vRam.nametableY = 0
-					}
-				} else if p.vRam.coarseY == 31 {
+					p.vRam.nametableY = ^p.vRam.nametableY
+				} else if p.vRam.coarseY == byte(31) {
 					p.vRam.coarseY = 0
 				} else {
 					p.vRam.coarseY++
@@ -690,26 +683,26 @@ func (p *PPU2C02) Clock() {
 		p.bgShifterPatternLo = p.bgShifterPatternLo&0xFF00 | Word(p.bgNextTileLsb)
 		p.bgShifterPatternHi = p.bgShifterPatternHi&0xFF00 | Word(p.bgNextTileMsb)
 
-		lo := Word(0x00)
+		lo := byte(0x00)
 		if p.bgNextTileAttrib&0x01 != 0 {
-			lo = Word(0x00FF)
+			lo = 0xFF
 		}
-		p.bgShifterAttribLo = p.bgShifterAttribLo&0xFF00 | lo
+		p.bgShifterAttribLo = p.bgShifterAttribLo&0xFF00 | Word(lo)
 
-		hi := Word(0x00)
+		hi := byte(0x00)
 		if p.bgNextTileAttrib&0x02 != 0 {
-			hi = Word(0x00FF)
+			hi = 0xFF
 		}
-		p.bgShifterAttribHi = p.bgShifterAttribHi&0xFF00 | hi
+		p.bgShifterAttribHi = p.bgShifterAttribHi&0xFF00 | Word(hi)
 	}
 
 	updateShifters := func(p *PPU2C02) {
 		if p.GetFlag(RENDER_BACKGROUND, MASK_REGISTER) {
-			p.bgShifterPatternLo <<= 1
-			p.bgShifterPatternHi <<= 1
+			p.bgShifterPatternLo = p.bgShifterPatternLo << 1
+			p.bgShifterPatternHi = p.bgShifterPatternHi << 1
 
-			p.bgShifterAttribLo <<= 1
-			p.bgShifterAttribHi <<= 1
+			p.bgShifterAttribLo = p.bgShifterAttribLo << 1
+			p.bgShifterAttribHi = p.bgShifterAttribHi << 1
 		}
 	}
 
@@ -736,10 +729,10 @@ func (p *PPU2C02) Clock() {
 					Word(0x23C0)|(Word(p.vRam.nametableY)<<11)|(Word(p.vRam.nametableX)<<10)|((Word(p.vRam.coarseY)>>2)<<3)|(Word(p.vRam.coarseX)>>2),
 					false)
 				if p.vRam.coarseY&0x02 > 0 {
-					p.bgNextTileAttrib >>= 4
+					p.bgNextTileAttrib = p.bgNextTileAttrib >> 4
 				}
 				if p.vRam.coarseX&0x02 > 0 {
-					p.bgNextTileAttrib >>= 2
+					p.bgNextTileAttrib = p.bgNextTileAttrib >> 2
 				}
 				p.bgNextTileAttrib &= 0x03
 				break
@@ -747,7 +740,7 @@ func (p *PPU2C02) Clock() {
 				p.bgNextTileLsb, _ = p.PPURead((Word(p.GetFlagByte(PATTERN_BACKGROUND, CONTROL_REGISTER))<<12)+Word(p.bgNextTileId)<<4+Word(p.vRam.fineY)+0, false)
 				break
 			case 6:
-				p.bgNextTileLsb, _ = p.PPURead(Word(p.GetFlagByte(PATTERN_BACKGROUND, CONTROL_REGISTER))<<12+Word(p.bgNextTileId)<<4+Word(p.vRam.fineY)+8, false)
+				p.bgNextTileMsb, _ = p.PPURead(Word(p.GetFlagByte(PATTERN_BACKGROUND, CONTROL_REGISTER))<<12+Word(p.bgNextTileId)<<4+Word(p.vRam.fineY)+8, false)
 				break
 			case 7:
 				incrementScrollX(p)
@@ -800,27 +793,27 @@ func (p *PPU2C02) Clock() {
 
 	if p.GetFlag(RENDER_BACKGROUND, MASK_REGISTER) {
 		bitMux := Word(0x8000) >> p.fineX
-		pixelLo := byte(0)
+		p0Pixel := byte(0)
 		if p.bgShifterAttribLo&bitMux > 0 {
-			pixelLo = 1
+			p0Pixel = 1
 		}
-		pixelHi := byte(0)
+		p1Pixel := byte(0)
 		if p.bgShifterAttribHi&bitMux > 0 {
-			pixelHi = 1
+			p1Pixel = 1
 		}
 
-		bgPixel = pixelHi<<1 | pixelLo
+		bgPixel = (p1Pixel << 1) | p0Pixel
 
-		palLo := byte(0)
+		bgPal0 := byte(0)
 		if p.bgShifterAttribLo&bitMux > 0 {
-			palLo = 1
+			bgPal0 = 1
 		}
-		palHi := byte(0)
+		bgPal1 := byte(0)
 		if p.bgShifterAttribHi&bitMux > 0 {
-			palHi = 1
+			bgPal1 = 1
 		}
 
-		bgPalette = palHi<<1 | palLo
+		bgPalette = (bgPal1 << 1) | bgPal0
 	}
 
 	// Paint pixel
