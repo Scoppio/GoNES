@@ -51,3 +51,7 @@ func (m *Mapper000) PPUMapRead(address Word) (uint32, bool) {
 func (m *Mapper000) PPUMapWrite(address Word) (uint32, bool) {
 	return 0, false
 }
+
+func (m *Mapper000) Reset() {
+	// do nothing
+}

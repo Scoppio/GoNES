@@ -46,8 +46,8 @@ func init() {
 	Nes.InsertCartridge(LoadCartridge("../test/roms/" + ROM_NAME + ".nes"))
 	// Nes.InsertCartridge(TestCartridge(rom, 0x8000))
 	cpu = Nes.cpu
-	cpu.ConnectBus(Nes)
-	cpu.Reset()
+
+	Nes.Reset()
 }
 
 func main() {
@@ -59,7 +59,7 @@ func main() {
 
 func run() {
 	cfg := pixelgl.WindowConfig{
-		Title:       "GoNES",
+		Title:       "Master GoNES",
 		Bounds:      pixel.R(0, 0, width, height),
 		Undecorated: false,
 	}

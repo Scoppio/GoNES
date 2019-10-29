@@ -178,3 +178,7 @@ func (c *Cartridge) PPUWrite(address Word, data byte) bool {
 	}
 	return false
 }
+
+func (c *Cartridge) Reset() {
+	c.mapper.Reset()
+}

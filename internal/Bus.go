@@ -53,10 +53,15 @@ func (b *Bus) CPURead(address Word, readOnly bool) (byte, error) {
 		d = b.ram[address&0x07FF]
 	} else if address >= 0x2000 && address <= 0x3FFF {
 		d, e = b.ppu.CPURead(address&0x0007, readOnly)
-	} else if address == 0xFFFC || address == 0xFFFD {
-		d = b.ram[address&0x07FF]
-	} else {
-		// there simply isnt anything to get, so we just return zeroes
+		// } else if address == 0xFFFC || address == 0xFFFD {
+		// 	d = b.ram[address&0x07FF]
+	} else if address == 0x4016 || address == 0x4017 {
+		// if (controller_state[address & 0x0001] & 0x80) > 0 {
+		// 	d = 1
+		// } else {
+		// 	d = 0
+		// }
+		// controller_state[address ^0x0001] <<= 1
 	}
 	return d, e
 }
@@ -87,23 +92,22 @@ func (b *Bus) CPUWrite(address Word, data byte) error {
 		b.ram[address&0x07FF] = data
 	} else if address >= 0x4016 && address <= 0x4017 {
 		// controller_state[addr & 0x0001] = controller[addr & 0x0001];
-	} else {
-		// e = errors.New(fmt.Sprintln("tried to access index out of range", Hex(uint32(address), 4)))
-		// fmt.Print(string(debug.Stack()))
 	}
 	return e
 }
 
 // Clock : Bus clock implementation pulses the clock to all things attached to it
 func (b *Bus) Clock() {
+
 	b.ppu.Clock()
+
 	if ClockCount%3 == 0 {
 		b.cpu.Clock()
 	}
 
 	if b.ppu.NonMaskableInterrupt {
-		b.cpu.NonMaskableInterruptRequest()
 		b.ppu.NonMaskableInterrupt = false
+		b.cpu.NonMaskableInterruptRequest()
 	}
 
 	ClockCount++
@@ -123,6 +127,8 @@ func (b *Bus) ExecutOperation() {
 
 func (b *Bus) Reset() {
 	b.cpu.Reset()
+	b.ppu.Reset()
+	b.cart.Reset()
 	OperationCount = 0
 	ClockCount = 0
 }

@@ -358,13 +358,6 @@ func IZY(c *CPU6502) byte {
 	return 0
 }
 
-func logError(e error) {
-	if e != nil {
-		log.Panicf("%s", e)
-	}
-	e = nil
-}
-
 // Begin OPCODES //
 
 // XXX : Invalid OpCode
@@ -393,13 +386,7 @@ func ADC(c *CPU6502) byte {
 // BCS : Branch if Carry
 func BCS(c *CPU6502) byte {
 	if c.StatusRegister(C) {
-		c.cycles++
-		c.addressAbs = c.pc + c.addressRel
-		if (c.addressAbs & 0xFF00) != (c.pc & 0xFF00) {
-			c.cycles++
-		}
-
-		c.pc = c.addressAbs
+		jump(c)
 	}
 	return 0
 }
@@ -497,8 +484,8 @@ func PHP(c *CPU6502) byte {
 func ROR(c *CPU6502) byte {
 	c.fetch()
 	temp := Word(c.fetched)>>1 | c.StatusRegisterAsWord(C)<<7
+	c.SetStatusRegisterFlag(C, (temp&0x0001) != 0)
 	c.SetFlagsZeroAndNegative(byte(temp & 0x00FF))
-	c.SetStatusRegisterFlag(C, (temp&0xFF00) != 0)
 
 	if FnEquals(OpCodesLookupTable[c.opcode].addressmode, IMP) {
 		c.a = byte(temp & 0x00FF)
@@ -532,6 +519,8 @@ func TSX(c *CPU6502) byte {
 }
 
 // AND : AND operation
+// Function:    A = A & M
+// Flags Out:   N, Z
 func AND(c *CPU6502) byte {
 	c.a = c.a & c.fetch()
 	c.SetFlagsZeroAndNegative(c.a)
@@ -541,13 +530,7 @@ func AND(c *CPU6502) byte {
 // BEQ : Branch if Equal
 func BEQ(c *CPU6502) byte {
 	if c.StatusRegister(Z) {
-		c.cycles++
-		c.addressAbs = c.pc + c.addressRel
-		if (c.addressAbs & 0xFF00) != (c.pc & 0xFF00) {
-			c.cycles++
-		}
-
-		c.pc = c.addressAbs
+		jump(c)
 	}
 	return 0
 }
@@ -571,8 +554,7 @@ func CMP(c *CPU6502) byte {
 	c.fetch()
 	temp := Word(c.a) - Word(c.fetched)
 	c.SetStatusRegisterFlag(C, c.a >= c.fetched)
-	c.SetStatusRegisterFlag(Z, (temp&0x00FF) == 0x0000)
-	c.SetStatusRegisterFlag(N, temp&0x0080 != 0)
+	c.SetFlagsZeroAndNegative(byte(temp))
 	return 1
 }
 
@@ -675,8 +657,7 @@ func ASL(c *CPU6502) byte {
 	c.fetch()
 	temp := Word(c.fetched) << 1
 	c.SetStatusRegisterFlag(C, (temp&0xFF00) != 0)
-	c.SetStatusRegisterFlag(Z, (temp&0x00FF) == 0x00)
-	c.SetStatusRegisterFlag(N, temp&0x80 != 0)
+	c.SetFlagsZeroAndNegative(byte(temp))
 	if FnEquals(OpCodesLookupTable[c.opcode].addressmode, IMP) {
 		c.a = byte(temp & 0x00FF)
 	} else {
@@ -729,8 +710,7 @@ func CPX(c *CPU6502) byte {
 	c.fetch()
 	temp := Word(c.x) - Word(c.fetched)
 	c.SetStatusRegisterFlag(C, c.x >= c.fetched)
-	c.SetStatusRegisterFlag(Z, (temp&0x00FF) == 0x0000)
-	c.SetStatusRegisterFlag(N, temp&0x0080 != 0)
+	c.SetFlagsZeroAndNegative(byte(temp))
 	return 0
 }
 
@@ -795,11 +775,11 @@ func SEI(c *CPU6502) byte {
 }
 
 // TAX : Instruction: Transfer Accumulator to Y Register
-// Function:    Y = A
+// Function:    X = A
 // Flags Out:   N, Z
 func TAX(c *CPU6502) byte {
-	c.y = c.a
-	c.SetFlagsZeroAndNegative(c.y)
+	c.x = c.a
+	c.SetFlagsZeroAndNegative(c.x)
 	return 0
 }
 
@@ -813,13 +793,7 @@ func TXS(c *CPU6502) byte {
 // BCC : Branch if Carry Clear
 func BCC(c *CPU6502) byte {
 	if !c.StatusRegister(C) {
-		c.cycles++
-		c.addressAbs = c.pc + c.addressRel
-		if (c.addressAbs & 0xFF00) != (c.pc & 0xFF00) {
-			c.cycles++
-		}
-
-		c.pc = c.addressAbs
+		jump(c)
 	}
 	return 0
 }
@@ -851,8 +825,7 @@ func CPY(c *CPU6502) byte {
 	c.fetch()
 	temp := Word(c.y) - Word(c.fetched)
 	c.SetStatusRegisterFlag(C, c.y >= c.fetched)
-	c.SetStatusRegisterFlag(Z, (temp&0x00FF) == 0x0000)
-	c.SetStatusRegisterFlag(N, temp&0x0080 != 0)
+	c.SetFlagsZeroAndNegative(byte(temp))
 	return 0
 }
 
@@ -938,6 +911,13 @@ func TYA(c *CPU6502) byte {
 	c.a = c.y
 	c.SetFlagsZeroAndNegative(c.a)
 	return 0
+}
+
+func logError(e error) {
+	if e != nil {
+		log.Panicf("%s", e)
+	}
+	e = nil
 }
 
 // Disassemble : This is the disassembly function. Its workings are not required for emulation.
