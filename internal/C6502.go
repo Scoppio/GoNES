@@ -85,7 +85,7 @@ func (c *CPU6502) SetStatusRegisterFlag(flag Flag, val bool) {
 // SetFlagsZeroAndNegative : Sets flags Z and N for a given value
 func (c *CPU6502) SetFlagsZeroAndNegative(val byte) {
 	c.SetStatusRegisterFlag(Z, val == 0x00)
-	c.SetStatusRegisterFlag(N, val&0x80 != 0)
+	c.SetStatusRegisterFlag(N, (val&0x80) != 0)
 }
 
 // ConnectBus : connects the CPU to the Bus
