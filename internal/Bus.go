@@ -113,7 +113,8 @@ func (b *Bus) Clock() {
 	ClockCount++
 }
 
-func (b *Bus) ExecutOperation() {
+// ExecuteOperation : This function clocks the bus until a function is executed completely
+func (b *Bus) ExecuteOperation() {
 	b.Clock()
 	for !b.cpu.Complete() {
 		b.Clock()
