@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/faiface/pixel/pixelgl"
 	"github.com/jroimartin/gocui"
 	"golang.org/x/image/colornames"
 )
@@ -22,7 +21,7 @@ const (
 )
 
 var (
-	Nes          *Bus
+	nes          *Bus
 	cpu          *CPU6502
 	mapAsm       map[Word]string
 	frames       = 0
@@ -30,17 +29,18 @@ var (
 	emulationRun = false
 	residualTime = 0.0
 	elapsedTime  = 0.0
-	ROM_NAME     = "nestest"
+	romname      = "nestest"
+	lastUpdate   = time.Now()
 )
 
 func init() {
-	Nes = CreateBus(CreateCPU(), CreatePPU())
-	Nes.InsertCartridge(LoadCartridge("../test/roms/" + ROM_NAME + ".nes"))
-	cpu = Nes.cpu
-	Nes.Reset()
+	nes = CreateBus(CreateCPU(), CreatePPU())
+	nes.InsertCartridge(LoadCartridge("../test/roms/" + romname + ".nes"))
+	cpu = nes.cpu
+	nes.Reset()
 	mapAsm = cpu.Disassemble(0x0000, 0xFFFF)
-	WriteDisassemble(mapAsm, "../output/"+ROM_NAME+".txt")
-	Nes.Reset()
+	WriteDisassemble(mapAsm, "../output/"+romname+".txt")
+	nes.Reset()
 }
 
 func main() {
@@ -231,15 +231,17 @@ func layout(g *gocui.Gui) error {
 	return nil
 }
 
-func tickEmulator() {
-	Nes.ExecuteOperation()
+func tickEmulator(g *gocui.Gui, v *gocui.View) error {
+	nes.ExecuteOperation()
+	return nil
 }
 
-func resetEmulator() {
-	Nes.Reset()
-	for !Nes.cpu.Complete() {
-		Nes.Clock()
+func resetEmulator(g *gocui.Gui, v *gocui.View) error {
+	nes.Reset()
+	for !nes.cpu.Complete() {
+		nes.Clock()
 	}
+	return nil
 }
 
 func memoryPointer(g *gocui.Gui) error {
@@ -249,32 +251,21 @@ func memoryPointer(g *gocui.Gui) error {
 
 	// drawRAM(2, 12, 0x0000, 16, 16)
 	// draw palette selected
-	drawRect(float64(int(516)+int(selectedPalette)*(swatchSize*5)-1), 132, swatchSize*4+2, swatchSize+2, &colornames.White)
+	// drawRect(float64(int(516)+int(selectedPalette)*(swatchSize*5)-1), 132, swatchSize*4+2, swatchSize+2, &colornames.White)
 
-	for p := 0; p < 8; p++ {
-		for s := 0; s < 4; s++ {
-			drawRect(float64(516+p*(swatchSize*5)+s*swatchSize), 133, swatchSize, swatchSize, Nes.ppu.GetColorFromPaletteRam(byte(p), byte(s)))
-		}
-	}
+	// for p := 0; p < 8; p++ {
+	// 	for s := 0; s < 4; s++ {
+	// 		drawRect(float64(516+p*(swatchSize*5)+s*swatchSize), 133, swatchSize, swatchSize, nes.ppu.GetColorFromPaletteRAM(byte(p), byte(s)))
+	// 	}
+	// }
 
 	elapsedTime = -lastUpdate.Sub(time.Now()).Seconds()
 	lastUpdate = time.Now()
+	return nil
 }
 
 func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
-}
-
-func run() {
-	lastUpdate := time.Now()
-	for !win.Closed() {
-		if win.JustPressed(pixelgl.KeyEscape) || win.JustPressed(pixelgl.KeyQ) {
-			return
-		}
-		win.Clear(colornames.Darkblue)
-		// win.Clear(color.Black)
-
-	}
 }
 
 func drawCPU(x, y float64) {
@@ -302,9 +293,8 @@ func drawCPU(x, y float64) {
 	drawString(x, y+72, fmt.Sprintln("Clock Count: ", ClockCount), colornames.White)
 	drawString(x, y+84, fmt.Sprintln("Operation Count: ", OperationCount), colornames.White)
 	drawString(x, y, fmt.Sprintln("Clock: ", c.cycles), colornames.White)
-	drawString(x, y, fmt.Sprintln("GlobalClock: ", clock_count), colornames.White)
-	drawString(x, y, fmt.Sprintln("ADD ABS: ", fmt.Sprintf("0x%X", c.address_abs)), colornames.White)
-	drawString(x, y, fmt.Sprintln("ADD REL: ", fmt.Sprintf("0x%X", c.address_rel)), colornames.White)
+	drawString(x, y, fmt.Sprintln("ADD ABS: ", fmt.Sprintf("0x%X", c.addressAbs)), colornames.White)
+	drawString(x, y, fmt.Sprintln("ADD REL: ", fmt.Sprintf("0x%X", c.addressRel)), colornames.White)
 }
 
 func drawRAM(x, y float64, addr Word, rows, columns int) {
@@ -316,7 +306,7 @@ func drawRAM(x, y float64, addr Word, rows, columns int) {
 		sOffset.WriteString(Hex(uint32(addr), 4))
 		sOffset.WriteByte(':')
 		for col := 0; col < columns; col++ {
-			v, e := Nes.CPURead(addr, true)
+			v, e := nes.CPURead(addr, true)
 			if e != nil {
 				//
 			}
@@ -365,5 +355,5 @@ func drawCode(x, y float64, lines int) {
 func drawString(x, y float64, message string, color color.RGBA) {
 	// basicTxt.Dot = pixel.V(x, height-y)
 	// basicTxt.Color = color
-	fmt.Fprintln(basicTxt, message)
+	// fmt.Fprintln(basicTxt, message)
 }

@@ -22,8 +22,8 @@ const (
 	V = 6
 	// N : Negative flag
 	N = 7
-	// STACK : Stack memory address
-	STACK = Word(0x0100)
+	// Stack : Stack memory address
+	Stack = Word(0x0100)
 )
 
 var (
@@ -58,6 +58,7 @@ func init() {
 		{"BEQ", BEQ, REL, 2}, {"SBC", SBC, IZY, 5}, {"???", XXX, IMP, 2}, {"???", XXX, IMP, 8}, {"???", NOP, IMP, 4}, {"SBC", SBC, ZPX, 4}, {"INC", INC, ZPX, 6}, {"???", XXX, IMP, 6}, {"SED", SED, IMP, 2}, {"SBC", SBC, ABY, 4}, {"NOP", NOP, IMP, 2}, {"???", XXX, IMP, 7}, {"???", NOP, IMP, 4}, {"SBC", SBC, ABX, 4}, {"INC", INC, ABX, 7}, {"???", XXX, IMP, 7}}
 }
 
+// CreateCPU : creates a new CPU
 func CreateCPU() *CPU6502 {
 	return &CPU6502{}
 }
@@ -93,10 +94,22 @@ func (c *CPU6502) ConnectBus(bus *Bus) {
 	c.bus = bus
 }
 
+// CPUReadStack : reads memory position at stack
+func (c *CPU6502) CPUReadStack(address Word) (byte, error) {
+	return c.bus.CPURead(Stack+address, false)
+}
+
+// CPURead : reads memory position from the CPU
 func (c *CPU6502) CPURead(address Word) (byte, error) {
 	return c.bus.CPURead(address, false)
 }
 
+// CPUWriteStack : writes memory position at stack
+func (c *CPU6502) CPUWriteStack(address Word, data byte) error {
+	return c.bus.CPUWrite(Stack+address, data)
+}
+
+// CPUWrite : writes memory position from the CPU
 func (c *CPU6502) CPUWrite(address Word, data byte) error {
 	return c.bus.CPUWrite(address, data)
 }
@@ -156,15 +169,15 @@ func (c *CPU6502) Reset() {
 // InterruptRequest : Sets the system in a state to execute code from an interruption
 func (c *CPU6502) InterruptRequest() {
 	if !c.StatusRegister(I) {
-		c.CPUWrite(STACK+Word(c.stkp), byte((c.pc>>8)&0x00ff))
+		c.CPUWriteStack(Word(c.stkp), byte((c.pc>>8)&0x00ff))
 		c.stkp--
-		c.CPUWrite(STACK+Word(c.stkp), byte(c.pc&0x00FF))
+		c.CPUWriteStack(Word(c.stkp), byte(c.pc&0x00FF))
 		c.stkp--
 
 		c.SetStatusRegisterFlag(B, false)
 		c.SetStatusRegisterFlag(U, true)
 		c.SetStatusRegisterFlag(I, true)
-		c.CPUWrite(STACK+Word(c.stkp), c.status)
+		c.CPUWriteStack(Word(c.stkp), c.status)
 		c.stkp--
 
 		c.addressAbs = 0xFFFE
@@ -178,15 +191,15 @@ func (c *CPU6502) InterruptRequest() {
 
 // NonMaskableInterruptRequest : Sets the system in a state to execute code from an interruption
 func (c *CPU6502) NonMaskableInterruptRequest() {
-	c.CPUWrite(STACK+Word(c.stkp), byte((c.pc>>8)&0x00ff))
+	c.CPUWriteStack(Word(c.stkp), byte((c.pc>>8)&0x00ff))
 	c.stkp--
-	c.CPUWrite(STACK+Word(c.stkp), byte(c.pc&0x00FF))
+	c.CPUWriteStack(Word(c.stkp), byte(c.pc&0x00FF))
 	c.stkp--
 
 	c.SetStatusRegisterFlag(B, false)
 	c.SetStatusRegisterFlag(U, true)
 	c.SetStatusRegisterFlag(I, true)
-	c.CPUWrite(STACK+Word(c.stkp), c.status)
+	c.CPUWriteStack(Word(c.stkp), c.status)
 	c.stkp--
 
 	c.addressAbs = 0xFFFA
@@ -442,12 +455,12 @@ func INC(c *CPU6502) byte {
 }
 
 // JSR : Jump to Sub-Routine
-// Function -> Push PC to stack, then pc = address
+// Function -> Push PC to Stack, then pc = address
 func JSR(c *CPU6502) byte {
 	c.pc--
-	c.CPUWrite(STACK+Word(c.stkp), byte(c.pc>>8))
+	c.CPUWriteStack(Word(c.stkp), byte(c.pc>>8))
 	c.stkp--
-	c.CPUWrite(STACK+Word(c.stkp), byte(c.pc))
+	c.CPUWriteStack(Word(c.stkp), byte(c.pc))
 	c.stkp--
 	c.pc = c.addressAbs
 	return 0
@@ -468,12 +481,12 @@ func LSR(c *CPU6502) byte {
 }
 
 // PHP : Instruction: Push Status Register to Stack
-// Function:    status -> stack
+// Function:    status -> Stack
 // Note:        Break flag is set to 1 before push
 func PHP(c *CPU6502) byte {
 	c.SetStatusRegisterFlag(B, true)
 	c.SetStatusRegisterFlag(U, true)
-	c.CPUWrite(STACK+Word(c.stkp), c.status)
+	c.CPUWriteStack(Word(c.stkp), c.status)
 	c.SetStatusRegisterFlag(B, false)
 	c.SetStatusRegisterFlag(U, false)
 	c.stkp--
@@ -510,7 +523,7 @@ func STX(c *CPU6502) byte {
 }
 
 // TSX : Instruction: Transfer Stack Pointer to X Register
-// Function:    X = stack pointer
+// Function:    X = Stack pointer
 // Flags Out:   N, Z
 func TSX(c *CPU6502) byte {
 	c.x = c.stkp
@@ -601,11 +614,11 @@ func NOP(c *CPU6502) byte {
 	return 0
 }
 
-// PLA : Pop from stack
+// PLA : Pop from Stack
 func PLA(c *CPU6502) byte {
 	c.stkp++
 
-	c.a, _ = c.CPURead(STACK + Word(c.stkp))
+	c.a, _ = c.CPUReadStack(Word(c.stkp))
 	c.SetFlagsZeroAndNegative(c.a)
 	return 0
 }
@@ -613,15 +626,15 @@ func PLA(c *CPU6502) byte {
 // RTI : Return from Interrupt
 func RTI(c *CPU6502) byte {
 	c.stkp++
-	c.status, _ = c.CPURead(STACK + Word(c.stkp))
+	c.status, _ = c.CPUReadStack(Word(c.stkp))
 
 	c.status &= ^(byte(1) << B)
 	c.status &= ^(byte(1) << U)
 
 	c.stkp++
-	lo, _ := c.CPURead(STACK + Word(c.stkp))
+	lo, _ := c.CPUReadStack(Word(c.stkp))
 	c.stkp++
-	hi, _ := c.CPURead(STACK + Word(c.stkp))
+	hi, _ := c.CPUReadStack(Word(c.stkp))
 	c.pc = (Word(hi) << 8) | Word(lo)
 	return 0
 }
@@ -748,10 +761,10 @@ func ORA(c *CPU6502) byte {
 }
 
 // PLP : Instruction: Pop Status Register off Stack
-// Function:    Status <- stack
+// Function:    Status <- Stack
 func PLP(c *CPU6502) byte {
 	c.stkp++
-	c.status, _ = c.CPURead(STACK + Word(c.stkp))
+	c.status, _ = c.CPUReadStack(Word(c.stkp))
 	c.SetStatusRegisterFlag(U, true)
 	return 0
 }
@@ -759,9 +772,9 @@ func PLP(c *CPU6502) byte {
 // RTS : Return from sub routine
 func RTS(c *CPU6502) byte {
 	c.stkp++
-	lo, _ := c.CPURead(STACK + Word(c.stkp))
+	lo, _ := c.CPUReadStack(Word(c.stkp))
 	c.stkp++
-	hi, _ := c.CPURead(STACK + Word(c.stkp))
+	hi, _ := c.CPUReadStack(Word(c.stkp))
 	c.pc = Word(hi)<<8 | Word(lo)
 	c.pc++
 	return 0
@@ -784,7 +797,7 @@ func TAX(c *CPU6502) byte {
 }
 
 // TXS : Instruction: Transfer Stack Pointer to X Register
-// Function:    stack pointer = X
+// Function:    Stack pointer = X
 func TXS(c *CPU6502) byte {
 	c.stkp = c.x
 	return 0
@@ -855,7 +868,7 @@ func LDY(c *CPU6502) byte {
 
 // PHA : Push accumulator to Stack
 func PHA(c *CPU6502) byte {
-	c.CPUWrite(STACK+Word(c.stkp), c.a)
+	c.CPUWriteStack(Word(c.stkp), c.a)
 	c.stkp--
 	return 0
 }

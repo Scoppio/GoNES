@@ -135,7 +135,7 @@ func TestOperationPHP(t *testing.T) {
 
 	stkp := cpu.stkp
 	PHP(cpu)
-	stackedStatus, e := cpu.CPURead(STACK + Word(stkp))
+	stackedStatus, e := cpu.CPURead(Stack + Word(stkp))
 	assertNil(t, e)
 	assertEqualsB(t, oldStatus, stackedStatus)
 }

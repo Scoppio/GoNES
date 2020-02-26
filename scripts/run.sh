@@ -6,4 +6,4 @@ go run ../internal/Video.go \
     ../internal/Mapper.go \
     ../internal/P2C02.go \
     ../internal/Renderer.go \
-    ../internal/Utils.go \
+    ../internal/Utils.go

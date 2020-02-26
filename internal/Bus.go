@@ -44,6 +44,7 @@ func (b *Bus) SetCodeEntry(address Word) {
 	b.CPUWrite(0xFFFD, byte(address>>8))
 }
 
+// CPURead : allow the reading of data by the CPU
 func (b *Bus) CPURead(address Word, readOnly bool) (byte, error) {
 	var d byte = 0x00
 	var e error = nil
@@ -66,6 +67,7 @@ func (b *Bus) CPURead(address Word, readOnly bool) (byte, error) {
 	return d, e
 }
 
+// CartCPURead : allows the read of CPU data on the cart
 func (b *Bus) CartCPURead(address Word) (byte, bool) {
 	if b.cart != nil {
 		return b.cart.CPURead(address)
@@ -73,6 +75,7 @@ func (b *Bus) CartCPURead(address Word) (byte, bool) {
 	return 0, false
 }
 
+// CartCPUWrite : write data on the cart from the CPU
 func (b *Bus) CartCPUWrite(address Word, data byte) bool {
 	if b.cart != nil {
 		return b.cart.CPUWrite(address, data)
@@ -80,6 +83,7 @@ func (b *Bus) CartCPUWrite(address Word, data byte) bool {
 	return false
 }
 
+// CPUWrite : write data from the CPU
 func (b *Bus) CPUWrite(address Word, data byte) error {
 	var e error = nil
 	if ok := b.CartCPUWrite(address, data); ok {
@@ -119,13 +123,9 @@ func (b *Bus) ExecuteOperation() {
 	for !b.cpu.Complete() {
 		b.Clock()
 	}
-	b.Clock()
-
-	for b.cpu.Complete() {
-		b.Clock()
-	}
 }
 
+// Reset : resets the whole system
 func (b *Bus) Reset() {
 	b.cpu.Reset()
 	b.ppu.Reset()
@@ -134,6 +134,7 @@ func (b *Bus) Reset() {
 	ClockCount = 0
 }
 
+// InsertCartridge : sets the ROM to the appropriate memory position for the PPU and Bus
 func (b *Bus) InsertCartridge(c *Cartridge) {
 	b.cart = c
 	b.ppu.InsertCartridge(c)

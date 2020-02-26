@@ -49,6 +49,7 @@ type Resetable interface {
 	Reset()
 }
 
+// Accessable : Accessable
 type Accessable interface {
 	CPUWriter
 	CPUReader

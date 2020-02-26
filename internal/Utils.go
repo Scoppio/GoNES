@@ -30,6 +30,7 @@ func Hex(n uint32, d int) string {
 	return b.String()
 }
 
+// WriteDisassemble : WriteDisassemble
 func WriteDisassemble(disassemble map[Word]string, filename string) {
 	f, _ := os.Create(filename)
 	defer f.Close()

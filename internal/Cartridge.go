@@ -6,10 +6,14 @@ import (
 )
 
 const (
-	HORIZONTAL   = 0
-	VERTICAL     = 1
-	ONESCREEN_LO = 2
-	ONESCREEN_HI = 3
+	// Horizontal : Horizontal
+	Horizontal = 0
+	// Vertical : Vertical
+	Vertical = 1
+	// OnescreenLo : OnescreenLo
+	OnescreenLo = 2
+	// OnescreenHi : OnescreenHi
+	OnescreenHi = 3
 )
 
 type header struct {
@@ -24,6 +28,7 @@ type header struct {
 	unused       [5]byte
 }
 
+// Cartridge : struct that defines the Cart object
 type Cartridge struct {
 	bus       *Bus
 	header    *header
@@ -36,6 +41,7 @@ type Cartridge struct {
 	Mirror    int
 }
 
+// TestCartridge : handmade cart for testing
 func TestCartridge(rom string, offset Word) *Cartridge {
 
 	cartHeader := &header{
@@ -75,11 +81,12 @@ func TestCartridge(rom string, offset Word) *Cartridge {
 	CHAMemory = buf
 
 	cart := &Cartridge{nil, cartHeader, mapperID,
-		&Mapper000{cartHeader.PGRRomBlocks, cartHeader.CHARomBlocks}, PRGMemory, CHAMemory, cartHeader.PGRRomBlocks, cartHeader.CHARomBlocks, HORIZONTAL}
+		&Mapper000{cartHeader.PGRRomBlocks, cartHeader.CHARomBlocks}, PRGMemory, CHAMemory, cartHeader.PGRRomBlocks, cartHeader.CHARomBlocks, Horizontal}
 
 	return cart
 }
 
+// LoadCartridge : loads the cart after giving a filepath
 func LoadCartridge(filepath string) *Cartridge {
 	file, err := os.Open(filepath)
 	if err != nil {
@@ -112,9 +119,9 @@ func LoadCartridge(filepath string) *Cartridge {
 	}
 
 	mapperID := ((cartHeader.mapper2 >> 4) << 4) | (cartHeader.mapper1 >> 4)
-	mirror := HORIZONTAL
+	mirror := Horizontal
 	if cartHeader.mapper1&0x01 > 0 {
-		mirror = VERTICAL
+		mirror = Vertical
 	}
 
 	// Discover what kind of iNes file, hardcoded 1 for now
@@ -149,6 +156,7 @@ func LoadCartridge(filepath string) *Cartridge {
 	return cart
 }
 
+// CPURead : allows the reading of data by the CPU
 func (c *Cartridge) CPURead(address Word) (byte, bool) {
 	if mappedAddress, ok := c.mapper.CPUMapRead(address); ok {
 		return c.PRGMemory[mappedAddress], true
@@ -156,6 +164,7 @@ func (c *Cartridge) CPURead(address Word) (byte, bool) {
 	return 0, false
 }
 
+// CPUWrite : allows the CPU to write data
 func (c *Cartridge) CPUWrite(address Word, data byte) bool {
 	if mappedAddress, ok := c.mapper.CPUMapWrite(address); ok {
 		c.PRGMemory[mappedAddress] = data
@@ -164,6 +173,7 @@ func (c *Cartridge) CPUWrite(address Word, data byte) bool {
 	return false
 }
 
+// PPURead : reads PPU data
 func (c *Cartridge) PPURead(address Word) (byte, bool) {
 	if mappedAddress, ok := c.mapper.PPUMapRead(address); ok {
 		return c.CHAMemory[mappedAddress], true
@@ -171,6 +181,7 @@ func (c *Cartridge) PPURead(address Word) (byte, bool) {
 	return 0, false
 }
 
+// PPUWrite : writes data to PPU
 func (c *Cartridge) PPUWrite(address Word, data byte) bool {
 	if mappedAddress, ok := c.mapper.PPUMapWrite(address); ok {
 		c.CHAMemory[mappedAddress] = data
@@ -179,6 +190,7 @@ func (c *Cartridge) PPUWrite(address Word, data byte) bool {
 	return false
 }
 
+// Reset : reset process
 func (c *Cartridge) Reset() {
 	c.mapper.Reset()
 }
