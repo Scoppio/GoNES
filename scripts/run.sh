@@ -1,4 +1,4 @@
-go run ../internal/Video.go \
+go run ../internal/Main.go \
     ../internal/Bus.go \
     ../internal/C6502.go \
     ../internal/Cartridge.go \
