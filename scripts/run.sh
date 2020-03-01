@@ -5,5 +5,5 @@ go run ../internal/Main.go \
     ../internal/DataTypes.go \
     ../internal/Mapper.go \
     ../internal/P2C02.go \
-    ../internal/Renderer.go \
-    ../internal/Utils.go
+    ../internal/Debug.go \
+    ../internal/Utils.go 

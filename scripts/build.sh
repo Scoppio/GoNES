@@ -1,4 +1,5 @@
-go build -o ../output/GoNES ../internal/Video.go \
+go build -o ../output/GoNES \
+    ../internal/Main.go \
     ../internal/Bus.go \
     ../internal/C6502.go \
     ../internal/P2C02.go \
@@ -6,4 +7,4 @@ go build -o ../output/GoNES ../internal/Video.go \
     ../internal/Utils.go \
     ../internal/Cartridge.go \
     ../internal/Mapper.go \
-    ../internal/Renderer.go
+    ../internal/Debug.go
