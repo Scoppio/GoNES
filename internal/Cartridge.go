@@ -192,5 +192,7 @@ func (c *Cartridge) PPUWrite(address Word, data byte) bool {
 
 // Reset : reset process
 func (c *Cartridge) Reset() {
-	c.mapper.Reset()
+	if c != nil && c.mapper != nil {
+		c.mapper.Reset()
+	}
 }

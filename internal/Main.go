@@ -1,15 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"image/color"
-	"log"
+	"os"
 	"strings"
-	"time"
 
 	"github.com/jroimartin/gocui"
-	"golang.org/x/image/colornames"
 )
 
 const (
@@ -24,35 +21,43 @@ var (
 	viewSelected = "ccode"
 )
 
+func initialization(rompath string) {
+
+}
+
 func main() {
-	g, err := gocui.NewGui(gocui.OutputNormal)
 
-	if err != nil {
-		log.Panicln(err)
-	}
-	defer g.Close()
+	SetRom(os.Args[1])
+	testCode()
 
-	g.SetManagerFunc(layout)
+	// g, err := gocui.NewGui(gocui.OutputNormal)
+	// if err != nil {
+	// 	log.Panicln(err)
+	// }
+	// defer g.Close()
 
-	g.Mouse = true
-	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
-		log.Panicln(err)
-	}
+	// g.SetManagerFunc(layout)
 
-	if err := g.SetKeybinding("", gocui.KeyCtrlD, gocui.ModNone, tickEmulator); err != nil {
-		log.Panicln(err)
-	}
+	// g.Mouse = true
 
-	if err := g.SetKeybinding("", gocui.KeyCtrlR, gocui.ModNone, resetEmulator); err != nil {
-		log.Panicln(err)
-	}
-	if err := g.SetKeybinding("", gocui.KeyTab, gocui.ModNone, changeCodeView); err != nil {
-		log.Panicln(err)
-	}
+	// if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
+	// 	log.Panicln(err)
+	// }
 
-	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
-		log.Panicln(err)
-	}
+	// if err := g.SetKeybinding("", gocui.KeyCtrlD, gocui.ModNone, tickEmulator); err != nil {
+	// 	log.Panicln(err)
+	// }
+
+	// if err := g.SetKeybinding("", gocui.KeyCtrlR, gocui.ModNone, resetEmulator); err != nil {
+	// 	log.Panicln(err)
+	// }
+	// if err := g.SetKeybinding("", gocui.KeyTab, gocui.ModNone, changeCodeView); err != nil {
+	// 	log.Panicln(err)
+	// }
+
+	// if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
+	// 	log.Panicln(err)
+	// }
 }
 
 func layout(g *gocui.Gui) error {
@@ -235,6 +240,10 @@ func tickEmulator(g *gocui.Gui, v *gocui.View) error {
 	tick()
 	return nil
 }
+func resetEmulator(g *gocui.Gui, v *gocui.View) error {
+	reset()
+	return nil
+}
 
 func changeCodeView(g *gocui.Gui, v *gocui.View) error {
 	if viewSelected == "asm" {
@@ -245,15 +254,10 @@ func changeCodeView(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-func resetEmulator(g *gocui.Gui, v *gocui.View) error {
-	reset()
-	return nil
-}
-
 func memoryPointer(g *gocui.Gui) error {
 
-	drawCPU(516, 15)
-	drawCode(516, 112, 16)
+	// drawCPU(516, 15)
+	// drawCode(516, 112, 16)
 
 	// drawRAM(2, 12, 0x0000, 16, 16)
 	// draw palette selected
@@ -265,8 +269,8 @@ func memoryPointer(g *gocui.Gui) error {
 	// 	}
 	// }
 
-	elapsedTime = -lastUpdate.Sub(time.Now()).Seconds()
-	lastUpdate = time.Now()
+	// elapsedTime = -lastUpdate.Sub(time.Now()).Seconds()
+	// lastUpdate = time.Now()
 	return nil
 }
 
@@ -274,89 +278,89 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
 }
 
-func drawCPU(x, y float64) {
-	c := cpu
-	redGreen := func(b bool) color.RGBA {
-		if b {
-			return colornames.White
-		}
-		return colornames.Red
-	}
-	drawString(x, y, "CPU", colornames.White)
-	drawString(x-30+64, y, "N", redGreen(c.StatusRegister(N)))
-	drawString(x-30+80, y, "V", redGreen(c.StatusRegister(V)))
-	drawString(x-30+96, y, "U", redGreen(c.StatusRegister(U)))
-	drawString(x-30+112, y, "B", redGreen(c.StatusRegister(B)))
-	drawString(x-30+128, y, "D", redGreen(c.StatusRegister(D)))
-	drawString(x-30+144, y, "I", redGreen(c.StatusRegister(I)))
-	drawString(x-30+160, y, "Z", redGreen(c.StatusRegister(Z)))
-	drawString(x-30+178, y, "C", redGreen(c.StatusRegister(C)))
-	drawString(x, y+12, fmt.Sprintln("PC: ", fmt.Sprintf("$%s [%d]", Hex(uint32(c.pc), 4), c.pc)), colornames.White)
-	drawString(x, y+24, fmt.Sprintln("A : ", fmt.Sprintf("$%s   [%d]", Hex(uint32(c.a), 2), c.a)), colornames.White)
-	drawString(x, y+36, fmt.Sprintln("X : ", fmt.Sprintf("$%s   [%d]", Hex(uint32(c.x), 2), c.x)), colornames.White)
-	drawString(x, y+48, fmt.Sprintln("Y : ", fmt.Sprintf("$%s   [%d]", Hex(uint32(c.y), 2), c.y)), colornames.White)
-	drawString(x, y+60, fmt.Sprintln("Stack P: ", fmt.Sprintf("$%s", Hex(uint32(c.stkp), 4))), colornames.White)
-	drawString(x, y+72, fmt.Sprintln("Clock Count: ", ClockCount), colornames.White)
-	drawString(x, y+84, fmt.Sprintln("Operation Count: ", OperationCount), colornames.White)
-	drawString(x, y, fmt.Sprintln("Clock: ", c.cycles), colornames.White)
-	drawString(x, y, fmt.Sprintln("ADD ABS: ", fmt.Sprintf("0x%X", c.addressAbs)), colornames.White)
-	drawString(x, y, fmt.Sprintln("ADD REL: ", fmt.Sprintf("0x%X", c.addressRel)), colornames.White)
-}
+// func drawCPU(x, y float64) {
+// 	c := cpu
+// 	redGreen := func(b bool) color.RGBA {
+// 		if b {
+// 			return colornames.White
+// 		}
+// 		return colornames.Red
+// 	}
+// 	drawString(x, y, "CPU", colornames.White)
+// 	drawString(x-30+64, y, "N", redGreen(c.StatusRegister(N)))
+// 	drawString(x-30+80, y, "V", redGreen(c.StatusRegister(V)))
+// 	drawString(x-30+96, y, "U", redGreen(c.StatusRegister(U)))
+// 	drawString(x-30+112, y, "B", redGreen(c.StatusRegister(B)))
+// 	drawString(x-30+128, y, "D", redGreen(c.StatusRegister(D)))
+// 	drawString(x-30+144, y, "I", redGreen(c.StatusRegister(I)))
+// 	drawString(x-30+160, y, "Z", redGreen(c.StatusRegister(Z)))
+// 	drawString(x-30+178, y, "C", redGreen(c.StatusRegister(C)))
+// 	drawString(x, y+12, fmt.Sprintln("PC: ", fmt.Sprintf("$%s [%d]", Hex(uint32(c.pc), 4), c.pc)), colornames.White)
+// 	drawString(x, y+24, fmt.Sprintln("A : ", fmt.Sprintf("$%s   [%d]", Hex(uint32(c.a), 2), c.a)), colornames.White)
+// 	drawString(x, y+36, fmt.Sprintln("X : ", fmt.Sprintf("$%s   [%d]", Hex(uint32(c.x), 2), c.x)), colornames.White)
+// 	drawString(x, y+48, fmt.Sprintln("Y : ", fmt.Sprintf("$%s   [%d]", Hex(uint32(c.y), 2), c.y)), colornames.White)
+// 	drawString(x, y+60, fmt.Sprintln("Stack P: ", fmt.Sprintf("$%s", Hex(uint32(c.stkp), 4))), colornames.White)
+// 	drawString(x, y+72, fmt.Sprintln("Clock Count: ", ClockCount), colornames.White)
+// 	drawString(x, y+84, fmt.Sprintln("Operation Count: ", OperationCount), colornames.White)
+// 	drawString(x, y, fmt.Sprintln("Clock: ", c.cycles), colornames.White)
+// 	drawString(x, y, fmt.Sprintln("ADD ABS: ", fmt.Sprintf("0x%X", c.addressAbs)), colornames.White)
+// 	drawString(x, y, fmt.Sprintln("ADD REL: ", fmt.Sprintf("0x%X", c.addressRel)), colornames.White)
+// }
 
-func drawRAM(x, y float64, addr Word, rows, columns int) {
-	RAMX := x
-	RAMY := y
-	for row := 0; row < rows; row++ {
-		var sOffset bytes.Buffer
-		sOffset.WriteByte('$')
-		sOffset.WriteString(Hex(uint32(addr), 4))
-		sOffset.WriteByte(':')
-		for col := 0; col < columns; col++ {
-			v, e := nes.CPURead(addr, true)
-			if e != nil {
-				//
-			}
-			if cpu.pc == addr {
-				sOffset.WriteByte('>')
-			} else {
-				sOffset.WriteByte(' ')
-			}
-			sOffset.WriteString(Hex(uint32(v), 2))
-			addr++
-		}
-		drawString(RAMX, RAMY, sOffset.String(), colornames.White)
-		RAMY += 11
-	}
-}
+// func drawRAM(x, y float64, addr Word, rows, columns int) {
+// 	RAMX := x
+// 	RAMY := y
+// 	for row := 0; row < rows; row++ {
+// 		var sOffset bytes.Buffer
+// 		sOffset.WriteByte('$')
+// 		sOffset.WriteString(Hex(uint32(addr), 4))
+// 		sOffset.WriteByte(':')
+// 		for col := 0; col < columns; col++ {
+// 			v, e := nes.CPURead(addr, true)
+// 			if e != nil {
+// 				//
+// 			}
+// 			if cpu.pc == addr {
+// 				sOffset.WriteByte('>')
+// 			} else {
+// 				sOffset.WriteByte(' ')
+// 			}
+// 			sOffset.WriteString(Hex(uint32(v), 2))
+// 			addr++
+// 		}
+// 		drawString(RAMX, RAMY, sOffset.String(), colornames.White)
+// 		RAMY += 11
+// 	}
+// }
 
-func drawCode(x, y float64, lines int) {
-	//
-	pc := cpu.pc
-	yPos := float64(lines>>1)*11 + y
-	if ida, ok := mapAsm[pc]; ok {
-		drawString(x, yPos, ida, colornames.Cyan)
-		for yPos < float64(lines)*10+y {
-			pc++
-			if ida, ok = mapAsm[pc]; ok {
-				if len(ida) > 0 {
-					yPos += 11
-					drawString(x, yPos, ida, colornames.White)
-				}
-			}
-		}
-	}
-	pc = cpu.pc
-	yPos = float64(lines>>1)*11 + y
-	if _, ok := mapAsm[pc]; ok {
-		for yPos > y {
-			pc--
-			if adi, ok := mapAsm[pc]; ok {
-				yPos -= 11
-				drawString(x, yPos, adi, colornames.White)
-			}
-		}
-	}
-}
+// func drawCode(x, y float64, lines int) {
+// 	//
+// 	pc := cpu.pc
+// 	yPos := float64(lines>>1)*11 + y
+// 	if ida, ok := mapAsm[pc]; ok {
+// 		drawString(x, yPos, ida, colornames.Cyan)
+// 		for yPos < float64(lines)*10+y {
+// 			pc++
+// 			if ida, ok = mapAsm[pc]; ok {
+// 				if len(ida) > 0 {
+// 					yPos += 11
+// 					drawString(x, yPos, ida, colornames.White)
+// 				}
+// 			}
+// 		}
+// 	}
+// 	pc = cpu.pc
+// 	yPos = float64(lines>>1)*11 + y
+// 	if _, ok := mapAsm[pc]; ok {
+// 		for yPos > y {
+// 			pc--
+// 			if adi, ok := mapAsm[pc]; ok {
+// 				yPos -= 11
+// 				drawString(x, yPos, adi, colornames.White)
+// 			}
+// 		}
+// 	}
+// }
 
 func drawString(x, y float64, message string, color color.RGBA) {
 	// basicTxt.Dot = pixel.V(x, height-y)

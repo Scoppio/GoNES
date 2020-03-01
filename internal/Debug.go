@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -13,17 +14,21 @@ var (
 	emulationRun = false
 	residualTime = 0.0
 	elapsedTime  = 0.0
-	romname      = "color_test"
 	lastUpdate   = time.Now()
 )
 
+// SetRom : Put a ROM on the memory of the Nes Emulator
+func SetRom(rom string) {
+	nes.InsertCartridge(LoadCartridge(rom))
+	nes.Reset()
+	mapAsm = cpu.Disassemble(0x0000, 0xFFFF)
+	filename := time.Now().Format("2006-01-02_15:04:05")
+	WriteDisassemble(mapAsm, "../output/disasemble_"+filename+".txt")
+}
+
 func init() {
 	nes = CreateBus(CreateCPU(), CreatePPU())
-	nes.InsertCartridge(LoadCartridge("../test/roms/" + romname + ".nes"))
 	cpu = nes.cpu
-	nes.Reset()
-	// mapAsm = cpu.Disassemble(0x0000, 0xFFFF)
-	WriteDisassemble(mapAsm, "../output/"+romname+".txt")
 	nes.Reset()
 }
 
@@ -35,5 +40,18 @@ func reset() {
 	nes.Reset()
 	for !nes.cpu.Complete() {
 		nes.Clock()
+	}
+}
+
+func testCode() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Assert failed:", r)
+		}
+	}()
+	// run Program until it sends the success msg
+	for {
+		tick()
+		fmt.Println(cpu.pc, cpu.a, cpu.x, cpu.y, cpu.opcode, cpu.status, cpu.stkp)
 	}
 }

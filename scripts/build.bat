@@ -1,1 +1,1 @@
-go build -o ..\\output\\GoNES.exe ..\\internal\\Main.go ..\\internal\\Bus.go ..\\internal\\C6502.go ..\\internal\\P2C02.go ..\\internal\\DataTypes.go ..\\internal\\Utils.go ..\\internal\\Cartridge.go ..\\internal\\Mapper.go
+go build -o ..\\output\\GoNES.exe ..\\internal\\Main.go ..\\internal\\Bus.go ..\\internal\\C6502.go ..\\internal\\Cartridge.go ..\\internal\\DataTypes.go ..\\internal\\Mapper.go ..\\internal\\P2C02.go ..\\internal\\Utils.go ..\\internal\\Debug.go
